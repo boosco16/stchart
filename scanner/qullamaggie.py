@@ -15,6 +15,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.NotOpenSSLWarning)
 
 import yfinance as yf
+yf.set_tz_cache_location("/tmp/yf_cache")
 import pandas as pd
 import numpy as np
 import requests
@@ -75,7 +76,7 @@ def get_market_tickers():
 def download_data(tickers):
     print(f"\nDownloading 12 months of data for {len(tickers)} tickers...")
     all_data = {}
-    batch_size = 40
+    batch_size = 20                      # down from 40
     total_batches = math.ceil(len(tickers) / batch_size)
 
     end_date = datetime.today() + timedelta(days=1)
@@ -85,18 +86,34 @@ def download_data(tickers):
         batch = tickers[i:i + batch_size]
         current_batch = (i // batch_size) + 1
         print(f"  Batch {current_batch}/{total_batches}...")
-        try:
-            raw = yf.download(
-                batch,
-                start=start_date.strftime('%Y-%m-%d'),
-                end=end_date.strftime('%Y-%m-%d'),
-                interval="1d",
-                auto_adjust=True,
-                progress=False,
-                threads=5
-            )
-        except Exception as e:
-            print(f"  Batch error: {e}")
+
+        for attempt in range(3):          # retry up to 3x on rate limit
+            try:
+                raw = yf.download(
+                    batch,
+                    start=start_date.strftime('%Y-%m-%d'),
+                    end=end_date.strftime('%Y-%m-%d'),
+                    interval="1d",
+                    auto_adjust=True,
+                    progress=False,
+                    threads=False,        # prevents SQLite lock
+                )
+                break
+            except Exception as e:
+                msg = str(e)
+                if 'Rate' in msg or '429' in msg:
+                    wait = (attempt + 1) * 30   # 30s, 60s, 90s
+                    print(f"  Rate limited. Waiting {wait}s before retry...")
+                    time.sleep(wait)
+                else:
+                    print(f"  Batch error: {e}")
+                    raw = None
+                    break
+        else:
+            print(f"  Skipping batch after 3 failed attempts")
+            continue
+
+        if raw is None or raw.empty:
             continue
 
         for t in batch:
@@ -121,7 +138,8 @@ def download_data(tickers):
                     all_data[t] = df.dropna()
             except:
                 pass
-        time.sleep(2)
+
+        time.sleep(5)                     # up from 2s
 
     print(f"  Got data for {len(all_data)} stocks")
     return all_data
