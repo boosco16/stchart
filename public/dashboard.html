@@ -146,6 +146,7 @@
     <div class="statusbar">
       <div class="status-panel" id="status-main">Ready</div>
       <div class="status-panel">NASDAQ + NYSE</div>
+      <div class="status-panel" id="next-scan">Next scan: calculating...</div>
       <div class="status-panel" id="status-time"></div>
     </div>
   </div>
@@ -160,7 +161,6 @@
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
     async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
 
-    // Clock
     function tick() {
       const now = new Date()
       document.getElementById('clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -168,16 +168,33 @@
     }
     tick(); setInterval(tick, 1000)
 
-    // Account
+    function updateNextScan() {
+      const now = new Date()
+      const utc = now.getTime() + now.getTimezoneOffset() * 60000
+      const etOffset = -5 * 60 * 60000
+      const nowET = new Date(utc + etOffset)
+
+      let next = new Date(nowET)
+      next.setHours(9, 45, 0, 0)
+      if (nowET >= next) next.setDate(next.getDate() + 1)
+      while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1)
+
+      const diffMs = next - nowET
+      const h = Math.floor(diffMs / 3600000)
+      const m = Math.floor((diffMs % 3600000) / 60000)
+      const s = Math.floor((diffMs % 60000) / 1000)
+      const countdown = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
+      const day = next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      document.getElementById('next-scan').textContent = `Next scan: ${day} 9:45 AM ET (in ${countdown})`
+    }
+    updateNextScan()
+    setInterval(updateNextScan, 1000)
+
     const accountInput = document.getElementById('account')
     accountInput.value = localStorage.getItem('st_account') || ''
     function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
 
-    // ── Calculator ──
-    let calcTicker = ''
-    let calcTimer = null
-    let countdown = 30
-    let countdownTimer = null
+    let calcTicker = '', calcTimer = null, countdown = 30, countdownTimer = null
 
     function clearCalc() {
       document.getElementById('calc-ticker').value = ''
@@ -242,7 +259,6 @@
       }, 1000)
     }
 
-    // ── Watchlist ──
     let watchlist = []
 
     function renderList() {
@@ -279,7 +295,6 @@
       renderList()
     }
 
-    // ── Scanner ──
     let results = [], sortCol = 'setup_date', sortDir = -1
 
     function sortBy(col) {
