@@ -6,16 +6,27 @@
   <title>SwingTrader — Scanner</title>
   <link rel="stylesheet" href="/shared.css" />
   <style>
-    .scan-meta { font-size: 12px; color: #333; margin-bottom: 20px; }
+    .meta { font-size: 12px; color: #333; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+    .meta-right { display: flex; align-items: center; gap: 16px; }
     .scan-card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
-    th { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; border-bottom: 1px solid #1a1a1a; }
-    td { padding: 12px 16px; border-bottom: 1px solid #141414; font-size: 13px; color: #ccc; }
+    th { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; border-bottom: 1px solid #1a1a1a; white-space: nowrap; cursor: pointer; user-select: none; }
+    th:hover { color: #888; }
+    th.sorted { color: #00c97a; }
+    td { padding: 12px 16px; border-bottom: 1px solid #141414; font-size: 13px; color: #ccc; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #131313; }
     .ticker-cell { font-size: 14px; font-weight: 600; color: #fff; }
-    .num { font-variant-numeric: tabular-nums; }
-    .empty { color: #2a2a2a; text-align: center; padding: 60px; }
+    .date-cell { font-variant-numeric: tabular-nums; color: #555; }
+    .today-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #001f12; color: #00c97a; margin-left: 6px; vertical-align: middle; }
+    .add-btn { font-size: 11px; padding: 3px 10px; border-radius: 5px; background: #161616; border: 1px solid #2a2a2a; color: #555; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .add-btn:hover { color: #00c97a; border-color: #00c97a; background: #001f12; }
+    .empty { color: #2a2a2a; text-align: center; padding: 80px; font-size: 14px; }
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    .filter-bar input { width: 180px; }
+    .count-badge { font-size: 12px; color: #333; }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #001f12; border: 1px solid #00c97a; color: #00c97a; font-size: 13px; padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -25,20 +36,122 @@
     <a class="nav-link" href="/watchlist">Watchlist</a>
     <div class="nav-right"><button class="logout-btn" onclick="logout()">Sign out</button></div>
   </nav>
+
   <main>
     <h1>Scanner Results</h1>
-    <p class="scan-meta" id="scan-meta">Loading...</p>
+
+    <div class="meta">
+      <span id="scan-time">Loading...</span>
+      <div class="meta-right">
+        <span class="count-badge" id="count"></span>
+      </div>
+    </div>
+
+    <div class="filter-bar">
+      <div>
+        <label>Filter ticker</label>
+        <input type="text" id="filter" placeholder="e.g. AAPL" oninput="renderTable()" />
+      </div>
+    </div>
+
     <div class="scan-card">
       <table>
-        <thead id="scan-head"><tr><th>Waiting for scan results...</th></tr></thead>
-        <tbody id="scan-body"><tr><td class="empty">No scans run yet. Results will appear here after the scanner runs.</td></tr></tbody>
+        <thead>
+          <tr>
+            <th onclick="sortBy('ticker')">Ticker</th>
+            <th onclick="sortBy('setup_date')">Setup Date</th>
+            <th onclick="sortBy('scanned_at')">Scanned</th>
+            <th>Add to Watchlist</th>
+          </tr>
+        </thead>
+        <tbody id="scan-body">
+          <tr><td colspan="4" class="empty">Loading scanner results...</td></tr>
+        </tbody>
       </table>
     </div>
   </main>
+
+  <div class="toast" id="toast"></div>
+
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
     async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
-    // Scanner results will be loaded here once Python code is integrated
+
+    let results = []
+    let sortCol = 'setup_date'
+    let sortDir = -1  // -1 = desc
+
+    function sortBy(col) {
+      if (sortCol === col) { sortDir *= -1 } else { sortCol = col; sortDir = -1 }
+      renderTable()
+    }
+
+    function renderTable() {
+      const filter = document.getElementById('filter').value.trim().toUpperCase()
+      const today = new Date().toISOString().slice(0, 10)
+
+      let rows = results.filter(r => !filter || r.ticker.includes(filter))
+
+      rows.sort((a, b) => {
+        const av = a[sortCol] || ''
+        const bv = b[sortCol] || ''
+        return av < bv ? -sortDir : av > bv ? sortDir : 0
+      })
+
+      document.getElementById('count').textContent = `${rows.length} setup${rows.length !== 1 ? 's' : ''}`
+
+      if (rows.length === 0) {
+        document.getElementById('scan-body').innerHTML =
+          '<tr><td colspan="4" class="empty">No results yet. Scanner runs at 9:45 AM and 2:00 PM ET on weekdays.</td></tr>'
+        return
+      }
+
+      document.getElementById('scan-body').innerHTML = rows.map(r => {
+        const isToday = r.setup_date === today
+        const scannedAt = new Date(r.scanned_at).toLocaleString()
+        return `<tr>
+          <td class="ticker-cell">${r.ticker}${isToday ? '<span class="today-badge">today</span>' : ''}</td>
+          <td class="date-cell">${r.setup_date}</td>
+          <td class="date-cell" style="font-size:11px">${scannedAt}</td>
+          <td><button class="add-btn" onclick="addToWatchlist('${r.ticker}')">+ Watchlist</button></td>
+        </tr>`
+      }).join('')
+    }
+
+    async function addToWatchlist(ticker) {
+      const r = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker })
+      })
+      const data = await r.json()
+      showToast(r.ok ? `${ticker} added to watchlist` : (data.error || 'Already in watchlist'))
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast')
+      t.textContent = msg
+      t.classList.add('show')
+      setTimeout(() => t.classList.remove('show'), 2500)
+    }
+
+    async function load() {
+      const r = await fetch('/api/scanner')
+      if (!r.ok) return
+      results = await r.json()
+
+      if (results.length > 0) {
+        const latest = new Date(results[0].scanned_at)
+        document.getElementById('scan-time').textContent =
+          `Last scan: ${latest.toLocaleString()}`
+      } else {
+        document.getElementById('scan-time').textContent = 'No scans run yet'
+      }
+
+      renderTable()
+    }
+
+    load()
   </script>
 </body>
 </html>
