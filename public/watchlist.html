@@ -186,7 +186,9 @@
         return
       }
 
-      const s = await fetchYahoo(calcTicker)
+   const res = await fetch(`/api/stocks/${calcTicker}`)
+if (!res.ok) { ... }
+const s = await res.json()
       if (!s) {
         document.getElementById('calc-error').textContent = `Could not find ticker: ${calcTicker}`
         return
@@ -251,8 +253,8 @@
       watchlist = await r.json()
       renderTable()
       await Promise.allSettled(watchlist.map(async item => {
-        const s = await fetchYahoo(item.ticker)
-        if (s) stockCache[item.ticker] = s
+        const r = await fetch(`/api/stocks/${item.ticker}`)
+if (r.ok) stockCache[item.ticker] = await r.json()
       }))
       renderTable()
       document.getElementById('wl-updated').textContent = 'Updated ' + new Date().toLocaleTimeString()
