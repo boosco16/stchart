@@ -4,6 +4,9 @@ import { supabase } from './_lib/supabase.js'
 export default async function handler(req, res) {
   if (!await isAuthenticated(req)) return res.status(401).json({ error: 'Unauthorized' })
 
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+  res.setHeader('Pragma', 'no-cache')
+
   const { data, error } = await supabase
     .from('scanner_progress')
     .select('*')
