@@ -28,20 +28,13 @@
     .wl-top { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
     .wl-top input.ticker-input { width: 80px; text-transform: uppercase; font-weight: 600; }
     .wl-card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; overflow: hidden; }
-    table { width: 100%; border-collapse: collapse; }
-    th { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px; text-align: left; border-bottom: 1px solid #1a1a1a; white-space: nowrap; }
-    td { padding: 12px 14px; border-bottom: 1px solid #141414; font-size: 13px; vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #131313; }
-    .ticker-name { font-size: 14px; font-weight: 600; color: #fff; }
-    .buzz { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
-    .buzz-hot { background: #2d1200; color: #f5a623; }
-    .buzz-mid { background: #1e1a00; color: #d4a800; }
-    .buzz-low { background: #161616; color: #444; }
+    .wl-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #141414; }
+    .wl-item:last-child { border-bottom: none; }
+    .wl-item:hover { background: #131313; }
+    .wl-ticker { font-size: 15px; font-weight: 600; color: #fff; }
     .del { background: none; border: none; color: #2a2a2a; cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 4px; line-height: 1; }
     .del:hover { color: #ff5555; }
-    .empty { color: #2a2a2a; text-align: center; padding: 40px; }
-    .num { font-variant-numeric: tabular-nums; }
+    .empty { color: #2a2a2a; text-align: center; padding: 40px; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -97,26 +90,9 @@
           <button class="btn btn-green" onclick="addTicker()">+ Add</button>
         </div>
 
-        <div class="wl-card">
-          <table>
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Price</th>
-                <th>Change</th>
-                <th>Vol Buzz</th>
-                <th>High</th>
-                <th>Low</th>
-                <th>Volume</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="wl-body">
-              <tr><td colspan="8" class="empty">Loading...</td></tr>
-            </tbody>
-          </table>
+        <div class="wl-card" id="wl-card">
+          <div class="empty">Loading...</div>
         </div>
-        <p style="font-size:11px;color:#2a2a2a;text-align:right;margin-top:8px" id="wl-updated"></p>
       </div>
 
     </div>
@@ -160,7 +136,8 @@
       const res = await fetch(`/api/stocks/${calcTicker}`)
 
       if (!res.ok) {
-        errEl.textContent = `Ticker not found: ${calcTicker}`
+        const d = await res.json()
+        errEl.textContent = d.error || `Ticker not found: ${calcTicker}`
         document.getElementById('calc-result').style.display = 'none'
         return
       }
@@ -194,44 +171,27 @@
     }
 
     // ── Watchlist ──
-    const stockCache = {}
     let watchlist = []
 
-    function buzzClass(b) { return b >= 3 ? 'buzz buzz-hot' : b >= 1.5 ? 'buzz buzz-mid' : 'buzz buzz-low' }
-    function fmt(n, d=2) { return (n ?? 0).toFixed(d) }
-
-    function renderTable() {
-      const tbody = document.getElementById('wl-body')
+    function renderList() {
+      const card = document.getElementById('wl-card')
       if (!watchlist.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">No tickers yet.</td></tr>'
+        card.innerHTML = '<div class="empty">No tickers yet.</div>'
         return
       }
-      tbody.innerHTML = watchlist.map(item => {
-        const s = stockCache[item.ticker]
-        return `<tr>
-          <td><div class="ticker-name">${item.ticker}</div></td>
-          <td class="num">${s ? '$' + fmt(s.price) : '<span class="muted">—</span>'}</td>
-          <td>${s ? `<span class="${s.changePct >= 0 ? 'green' : 'red'} num">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>` : '<span class="muted">—</span>'}</td>
-          <td>${s ? `<span class="${buzzClass(s.volumeBuzz)}">${fmt(s.volumeBuzz, 1)}x</span>` : '<span class="muted">—</span>'}</td>
-          <td class="num muted">${s?.high ? '$' + fmt(s.high) : '—'}</td>
-          <td class="num muted">${s?.low ? '$' + fmt(s.low) : '—'}</td>
-          <td class="num muted">${s?.volume ? s.volume.toLocaleString() : '—'}</td>
-          <td><button class="del" onclick="remove('${item.id}')">×</button></td>
-        </tr>`
-      }).join('')
+      card.innerHTML = watchlist.map(item => `
+        <div class="wl-item">
+          <span class="wl-ticker">${item.ticker}</span>
+          <button class="del" onclick="remove('${item.id}')">×</button>
+        </div>
+      `).join('')
     }
 
     async function loadWatchlist() {
       const r = await fetch('/api/watchlist')
       if (!r.ok) return
       watchlist = await r.json()
-      renderTable()
-      await Promise.allSettled(watchlist.map(async item => {
-        const r = await fetch(`/api/stocks/${item.ticker}`)
-        if (r.ok) stockCache[item.ticker] = await r.json()
-      }))
-      renderTable()
-      document.getElementById('wl-updated').textContent = 'Updated ' + new Date().toLocaleTimeString()
+      renderList()
     }
 
     async function addTicker() {
@@ -251,11 +211,10 @@
     async function remove(id) {
       await fetch(`/api/watchlist/${id}`, { method: 'DELETE' })
       watchlist = watchlist.filter(w => w.id !== id)
-      renderTable()
+      renderList()
     }
 
     loadWatchlist()
-    setInterval(loadWatchlist, 60000)
   </script>
 </body>
 </html>
