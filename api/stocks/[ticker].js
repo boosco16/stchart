@@ -1,41 +1,56 @@
 import { isAuthenticated } from '../_lib/session.js'
 
-const KEY = process.env.POLYGON_API_KEY
-const BASE = 'https://api.polygon.io'
-
 export default async function handler(req, res) {
   if (!await isAuthenticated(req)) return res.status(401).json({ error: 'Unauthorized' })
 
   const ticker = req.query.ticker?.toUpperCase()
+  if (!ticker) return res.status(400).json({ error: 'No ticker' })
 
   try {
-    const [snapRes, refRes] = await Promise.all([
-      fetch(`${BASE}/v2/snapshot/locale/us/markets/stocks/tickers/${ticker}?apiKey=${KEY}`),
-      fetch(`${BASE}/v3/reference/tickers/${ticker}?apiKey=${KEY}`),
-    ])
-    const [snap, ref] = await Promise.all([snapRes.json(), refRes.json()])
-    const s = snap.ticker
-    if (!s) return res.status(404).json({ error: 'Not found' })
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+      }
+    })
 
-    const todayVol = s.day?.volume || 0
-    const prevVol = s.prevDay?.volume || todayVol || 1
+    if (!r.ok) return res.status(404).json({ error: 'Ticker not found' })
 
-    res.setHeader('Cache-Control', 's-maxage=60')
+    const data = await r.json()
+    const result = data?.chart?.result?.[0]
+    if (!result) return res.status(404).json({ error: 'Ticker not found' })
+
+    const meta = result.meta
+    const quote = result.indicators?.quote?.[0]
+
+    const price = meta.regularMarketPrice ?? 0
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0
+    const open = quote?.open?.[0] ?? 0
+    const high = quote?.high?.[0] ?? 0
+    const low = quote?.low?.[0] ?? 0
+    const volume = quote?.volume?.[0] ?? 0
+    const avgVolume = meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 1
+    const change = price - prevClose
+    const changePct = prevClose ? (change / prevClose) * 100 : 0
+    const volumeBuzz = avgVolume ? parseFloat((volume / avgVolume).toFixed(2)) : 1
+
+    res.setHeader('Cache-Control', 's-maxage=30')
     res.json({
       ticker,
-      name: ref.results?.name || ticker,
-      price: s.day?.close ?? s.lastTrade?.price ?? 0,
-      open: s.day?.open ?? 0,
-      high: s.day?.high ?? 0,
-      low: s.day?.low ?? 0,
-      volume: todayVol,
-      prevClose: s.prevDay?.close ?? 0,
-      change: s.todaysChange ?? 0,
-      changePct: s.todaysChangePerc ?? 0,
-      vwap: s.day?.vwap ?? 0,
-      volumeBuzz: parseFloat((todayVol / prevVol).toFixed(2)),
+      name: meta.longName || meta.shortName || ticker,
+      price,
+      open,
+      high,
+      low,
+      volume,
+      prevClose,
+      change,
+      changePct,
+      vwap: meta.regularMarketPrice,
+      volumeBuzz,
     })
-  } catch {
-    res.status(500).json({ error: 'Failed to fetch' })
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to fetch stock data' })
   }
 }
