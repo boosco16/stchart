@@ -2,8 +2,8 @@ name: Stock Scanner
 
 on:
   schedule:
-    - cron: '0 18 * * 1-5'    # 2:00 PM ET (mid-session)
-  workflow_dispatch:            # lets you also trigger it manually from GitHub
+    - cron: '45 13 * * 1-5'   # 9:45 AM ET (EDT summer, UTC-4)
+  workflow_dispatch:
 
 jobs:
   scan:
