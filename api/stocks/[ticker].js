@@ -7,56 +7,66 @@ export default async function handler(req, res) {
   if (!ticker) return res.status(400).json({ error: 'No ticker' })
 
   try {
-    const url = `https://stooq.com/q/d/l/?s=${ticker}.US&i=d`
-    const r = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    })
+    // Try query1 first, fall back to query2
+    let data = null
+    for (const host of ['query1', 'query2']) {
+      try {
+        const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=5d`
+        const r = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://finance.yahoo.com/',
+            'Origin': 'https://finance.yahoo.com',
+            'sec-fetch-dest': 'empty',
+            'sec-fetch-mode': 'cors',
+            'sec-fetch-site': 'same-site',
+          }
+        })
+        if (r.ok) {
+          const json = await r.json()
+          if (json?.chart?.result?.[0]) {
+            data = json
+            break
+          }
+        }
+      } catch {}
+    }
 
-    if (!r.ok) return res.status(404).json({ error: 'Ticker not found' })
+    if (!data) return res.status(404).json({ error: 'Ticker not found' })
 
-    const text = await r.text()
-    const lines = text.trim().split('\n')
+    const result = data.chart.result[0]
+    const meta = result.meta
+    const quotes = result.indicators?.quote?.[0]
+    const closes = result.indicators?.adjclose?.[0]?.adjclose ?? []
 
-    // Need at least header + 2 data rows
-    if (lines.length < 3) return res.status(404).json({ error: 'Ticker not found' })
+    // Get today's and yesterday's data
+    const timestamps = result.timestamp ?? []
+    const lastIdx = timestamps.length - 1
+    const prevIdx = lastIdx - 1
 
-    // Parse rows — header is: Date,Open,High,Low,Close,Volume
-    const rows = lines.slice(1).map(line => {
-      const [date, open, high, low, close, volume] = line.split(',')
-      return {
-        date,
-        open: parseFloat(open),
-        high: parseFloat(high),
-        low: parseFloat(low),
-        close: parseFloat(close),
-        volume: parseInt(volume) || 0
-      }
-    }).filter(r => !isNaN(r.close) && r.close > 0)
-
-    if (rows.length < 2) return res.status(404).json({ error: 'Insufficient data' })
-
-    const today = rows[rows.length - 1]
-    const yesterday = rows[rows.length - 2]
-
-    // Average volume over last 20 days
-    const recent = rows.slice(-20)
-    const avgVolume = recent.reduce((sum, r) => sum + r.volume, 0) / recent.length
-
-    const price = today.close
-    const prevClose = yesterday.close
+    const price = meta.regularMarketPrice ?? quotes?.close?.[lastIdx] ?? 0
+    const prevClose = meta.chartPreviousClose ?? quotes?.close?.[prevIdx] ?? 0
+    const high = quotes?.high?.[lastIdx] ?? meta.regularMarketDayHigh ?? 0
+    const low = quotes?.low?.[lastIdx] ?? meta.regularMarketDayLow ?? 0
+    const open = quotes?.open?.[lastIdx] ?? 0
+    const volume = quotes?.volume?.[lastIdx] ?? meta.regularMarketVolume ?? 0
+    const avgVolume = meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 1
     const change = price - prevClose
     const changePct = prevClose ? (change / prevClose) * 100 : 0
-    const volumeBuzz = avgVolume ? parseFloat((today.volume / avgVolume).toFixed(2)) : 1
+    const volumeBuzz = avgVolume ? parseFloat((volume / avgVolume).toFixed(2)) : 1
 
-    res.setHeader('Cache-Control', 's-maxage=60')
+    res.setHeader('Cache-Control', 's-maxage=30')
     res.json({
       ticker,
-      name: ticker,
+      name: meta.longName || meta.shortName || ticker,
       price,
-      high: today.high,
-      low: today.low,
-      open: today.open,
-      volume: today.volume,
+      high,
+      low,
+      open,
+      volume,
       prevClose,
       change,
       changePct,
