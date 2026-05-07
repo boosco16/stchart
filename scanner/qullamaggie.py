@@ -1,6 +1,6 @@
 """
 QULLAMAGGIE 5-STAR SETUP SCANNER
-Runs via GitHub Actions twice daily, writes results to Supabase.
+Runs via GitHub Actions, writes results to Supabase.
 """
 
 import os
@@ -35,14 +35,17 @@ SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 db = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def update_progress(status, done=0, total=0):
-    db.table('scanner_progress').update({
-        'status': status,
-        'tickers_done': done,
-        'tickers_total': total,
-        'updated_at': datetime.utcnow().isoformat(),
-    }).eq('id', 1).execute()
+    try:
+        db.table('scanner_progress').update({
+            'status': status,
+            'tickers_done': done,
+            'tickers_total': total,
+            'updated_at': datetime.utcnow().isoformat(),
+        }).eq('id', 1).execute()
+    except Exception as e:
+        print(f"  Progress update failed: {e}")
 
-# ── Parameters (unchanged) ───────────────────────────────────────────────────
+# ── Parameters ───────────────────────────────────────────────────────────────
 PARAM_SET = {
     'DOLLAR_VOLUME_MIN': 25_000_000,
     'ADR_MIN': 0.05,
@@ -80,7 +83,7 @@ def get_market_tickers():
     print(f"  Found {len(tickers)} tickers")
     return tickers
 
-# ── Download 12 months (enough for all lookbacks, much faster than 10yr) ─────
+# ── Download data ─────────────────────────────────────────────────────────────
 def download_data(tickers):
     print(f"\nDownloading data for {len(tickers)} tickers...")
     all_data = {}
@@ -95,9 +98,10 @@ def download_data(tickers):
     failed = []
 
     for i, t in enumerate(tickers):
-       if i % 50 == 0:
+        if i % 50 == 0:
             print(f"  {i}/{len(tickers)} — {len(all_data)} loaded so far...")
             update_progress('downloading', i, len(tickers))
+
         for attempt in range(4):
             try:
                 df = yf.Ticker(t, session=session).history(
@@ -125,22 +129,22 @@ def download_data(tickers):
             except Exception as e:
                 msg = str(e)
                 if 'Rate' in msg or '429' in msg or 'Too Many' in msg:
-                    wait = (2 ** attempt) * 20   # 20s, 40s, 80s, 160s
+                    wait = (2 ** attempt) * 20
                     print(f"  Rate limited at {t} (attempt {attempt+1}). Waiting {wait}s...")
                     time.sleep(wait)
                 else:
                     failed.append(t)
                     break
 
-        time.sleep(0.4)   # 0.4s between every ticker = ~150/min, well under Yahoo's limit
+        time.sleep(0.4)
 
     if failed:
-        print(f"  {len(failed)} tickers failed (data unavailable, not rate limits)")
+        print(f"  {len(failed)} tickers failed (data unavailable)")
 
     print(f"  Done. Got data for {len(all_data)} stocks.")
     return all_data
 
-# ── Scanner (unchanged algorithm) ────────────────────────────────────────────
+# ── Scanner ───────────────────────────────────────────────────────────────────
 def scan_stock_history(args):
     ticker, df, p = args
     found_flags = []
@@ -206,32 +210,27 @@ def scan_stock_history(args):
 
     return found_flags
 
-# ── Main ─────────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     multiprocessing.set_start_method('fork')
     cores = multiprocessing.cpu_count()
-    
-    update_progress('running', 0, 0)   # ← add this line
+
     print("=" * 70)
     print(f"  QULLAMAGGIE SCANNER  |  {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 70)
 
-    tickers = get_market_tickers()
-    all_data = download_data(tickers)
+    update_progress('running', 0, 0)
 
- tickers = get_market_tickers()
+    tickers = get_market_tickers()
     update_progress('downloading', 0, len(tickers))
-    
+
     all_data = download_data(tickers)
     update_progress('scanning', 0, len(all_data))
 
     print(f"\nScanning {len(all_data)} stocks across {cores} cores...")
-    # ... existing scan code ...
 
-    update_progress('saving', len(all_flags), len(all_data))
-    # ... existing Supabase write code ...
-
-    update_progress('idle', len(all_flags), len(all_data))
+    work_items = [(t, df, PARAM_SET) for t, df in all_data.items()]
+    all_flags = []
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
         for result in executor.map(scan_stock_history, work_items):
@@ -240,17 +239,15 @@ if __name__ == "__main__":
 
     print(f"Scan complete. {len(all_flags)} total setup instances found.")
 
-    # ── Filter to setups from the last 5 trading days only ──────────────────
+    update_progress('saving', len(all_flags), len(all_data))
+
     today = datetime.utcnow().date()
     cutoff = today - timedelta(days=7)
     recent_flags = [(t, d) for t, d in all_flags if pd.Timestamp(d).date() >= cutoff]
 
     print(f"{len(recent_flags)} recent setups (last 7 days)")
 
-    # ── Write to Supabase ────────────────────────────────────────────────────
     scanned_at = datetime.utcnow().isoformat()
-
-    # Delete results older than 60 days to keep the table clean
     old_cutoff = (today - timedelta(days=60)).isoformat()
     db.table('scanner_results').delete().lt('setup_date', old_cutoff).execute()
 
@@ -269,3 +266,6 @@ if __name__ == "__main__":
             print(f"  {pd.Timestamp(d).strftime('%Y-%m-%d')}  {t}")
     else:
         print("No setups from the last 7 days.")
+
+    update_progress('idle', len(all_flags), len(all_data))
+    print("\nDone.")
