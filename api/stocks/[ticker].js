@@ -7,11 +7,14 @@ export default async function handler(req, res) {
   if (!ticker) return res.status(400).json({ error: 'No ticker' })
 
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
     const r = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://finance.yahoo.com',
+        'Origin': 'https://finance.yahoo.com',
       }
     })
 
@@ -26,31 +29,28 @@ export default async function handler(req, res) {
 
     const price = meta.regularMarketPrice ?? 0
     const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0
-    const open = quote?.open?.[0] ?? 0
     const high = quote?.high?.[0] ?? 0
     const low = quote?.low?.[0] ?? 0
     const volume = quote?.volume?.[0] ?? 0
     const avgVolume = meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 1
     const change = price - prevClose
     const changePct = prevClose ? (change / prevClose) * 100 : 0
-    const volumeBuzz = avgVolume ? parseFloat((volume / avgVolume).toFixed(2)) : 1
+    const volumeBuzz = parseFloat((volume / avgVolume).toFixed(2))
 
     res.setHeader('Cache-Control', 's-maxage=30')
     res.json({
       ticker,
       name: meta.longName || meta.shortName || ticker,
       price,
-      open,
       high,
       low,
       volume,
       prevClose,
       change,
       changePct,
-      vwap: meta.regularMarketPrice,
       volumeBuzz,
     })
   } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch stock data' })
+    res.status(500).json({ error: e.message })
   }
 }
