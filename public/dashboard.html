@@ -39,7 +39,18 @@
 
   <main>
     <h1>Scanner Results</h1>
-
+<div id="progress-wrap" style="display:none; margin-bottom:24px;">
+  <div style="background:#111;border:1px solid #1e1e1e;border-radius:12px;padding:20px 24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-size:13px;color:#ccc;" id="progress-label">Scanner running...</span>
+      <span style="font-size:12px;color:#444;" id="progress-count"></span>
+    </div>
+    <div style="background:#1a1a1a;border-radius:4px;height:6px;overflow:hidden;">
+      <div id="progress-bar" style="height:6px;background:#00c97a;border-radius:4px;width:0%;transition:width 0.5s ease;"></div>
+    </div>
+    <p style="font-size:11px;color:#333;margin-top:8px;" id="progress-updated"></p>
+  </div>
+</div>
     <div class="meta">
       <span id="scan-time">Loading...</span>
       <div class="meta-right">
@@ -74,6 +85,51 @@
   <div class="toast" id="toast"></div>
 
   <script>
+async function loadProgress() {
+  const r = await fetch('/api/scanner-progress')
+  if (!r.ok) return
+  const p = await r.json()
+
+  const wrap = document.getElementById('progress-wrap')
+  const label = document.getElementById('progress-label')
+  const count = document.getElementById('progress-count')
+  const bar = document.getElementById('progress-bar')
+  const updated = document.getElementById('progress-updated')
+
+  const isActive = p.status !== 'idle'
+  wrap.style.display = isActive ? 'block' : 'none'
+
+  if (isActive) {
+    const pct = p.tickers_total > 0
+      ? Math.round((p.tickers_done / p.tickers_total) * 100)
+      : 0
+
+    const labels = {
+      running: 'Starting scanner...',
+      downloading: `Downloading market data...`,
+      scanning: 'Scanning for setups...',
+      saving: 'Saving results...',
+    }
+
+    label.textContent = labels[p.status] || p.status
+    count.textContent = p.tickers_total > 0
+      ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} tickers (${pct}%)`
+      : ''
+    bar.style.width = pct + '%'
+    updated.textContent = p.updated_at
+      ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString()
+      : ''
+  }
+}
+
+// Poll progress every 10 seconds when active, slower when idle
+let progressInterval
+async function startProgressPolling() {
+  await loadProgress()
+  progressInterval = setInterval(loadProgress, 10000)
+}
+
+startProgressPolling()
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
     async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
 
