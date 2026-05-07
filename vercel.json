@@ -1,7 +1,5 @@
 {
   "rewrites": [
-    { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/watchlist", "destination": "/watchlist.html" },
-    { "source": "/calculator", "destination": "/calculator.html" }
+    { "source": "/dashboard", "destination": "/dashboard.html" }
   ]
 }
