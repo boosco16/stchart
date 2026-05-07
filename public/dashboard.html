@@ -173,19 +173,17 @@
       const utc = now.getTime() + now.getTimezoneOffset() * 60000
       const etOffset = -5 * 60 * 60000
       const nowET = new Date(utc + etOffset)
-
       let next = new Date(nowET)
       next.setHours(9, 45, 0, 0)
       if (nowET >= next) next.setDate(next.getDate() + 1)
       while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1)
-
       const diffMs = next - nowET
       const h = Math.floor(diffMs / 3600000)
       const m = Math.floor((diffMs % 3600000) / 60000)
       const s = Math.floor((diffMs % 60000) / 1000)
-      const countdown = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
+      const ct = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
       const day = next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-      document.getElementById('next-scan').textContent = `Next scan: ${day} 9:45 AM ET (in ${countdown})`
+      document.getElementById('next-scan').textContent = `Next scan: ${day} 9:45 AM ET (in ${ct})`
     }
     updateNextScan()
     setInterval(updateNextScan, 1000)
@@ -194,7 +192,7 @@
     accountInput.value = localStorage.getItem('st_account') || ''
     function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
 
-    let calcTicker = '', calcTimer = null, countdown = 30, countdownTimer = null
+    let calcTicker = '', calcTimer = null, calcCountdown = 30, countdownTimer = null
 
     function clearCalc() {
       document.getElementById('calc-ticker').value = ''
@@ -249,13 +247,13 @@
       document.getElementById('res-risk').textContent = riskPerShare > 0 ? '$' + riskPerShare.toFixed(2) : 'N/A'
       document.getElementById('res-dollar-risk').textContent = '$' + dollarRisk.toFixed(2)
 
-      countdown = 30
+      calcCountdown = 30
       clearInterval(countdownTimer)
       countdownTimer = setInterval(() => {
-        countdown--
-        document.getElementById('refresh-fill').style.width = (countdown / 30 * 100) + '%'
-        document.getElementById('refresh-label').textContent = 'Refresh in ' + countdown + 's'
-        if (countdown <= 0) clearInterval(countdownTimer)
+        calcCountdown--
+        document.getElementById('refresh-fill').style.width = (calcCountdown / 30 * 100) + '%'
+        document.getElementById('refresh-label').textContent = 'Refresh in ' + calcCountdown + 's'
+        if (calcCountdown <= 0) clearInterval(countdownTimer)
       }, 1000)
     }
 
@@ -344,6 +342,8 @@
       renderTable()
     }
 
+    let wasActive = false
+
     async function loadProgress() {
       const r = await fetch('/api/scanner-progress')
       if (!r.ok) return
@@ -351,20 +351,27 @@
       const wrap = document.getElementById('progress-wrap')
       const active = p.status !== 'idle'
       wrap.style.display = active ? 'block' : 'none'
+
       if (active) {
+        wasActive = true
         const pct = p.tickers_total > 0 ? Math.round(p.tickers_done / p.tickers_total * 100) : 0
         const labels = { running: 'Starting scanner...', downloading: 'Downloading market data...', scanning: 'Scanning for setups...', saving: 'Saving results...' }
         document.getElementById('progress-label').textContent = labels[p.status] || p.status
         document.getElementById('progress-fill').style.width = pct + '%'
         document.getElementById('progress-count').textContent = p.tickers_total > 0 ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)` : ''
         document.getElementById('progress-updated').textContent = p.updated_at ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString() : ''
+      } else if (wasActive) {
+        wasActive = false
+        document.getElementById('status-main').textContent = 'Scan complete — loading results...'
+        await loadScanner()
+        document.getElementById('status-main').textContent = 'Ready'
       }
     }
 
     loadWatchlist()
     loadScanner()
     loadProgress()
-    setInterval(loadProgress, 10000)
+    setInterval(loadProgress, 3000)
     setInterval(loadScanner, 300000)
   </script>
 </body>
