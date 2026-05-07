@@ -74,74 +74,62 @@ def get_market_tickers():
 
 # ── Download 12 months (enough for all lookbacks, much faster than 10yr) ─────
 def download_data(tickers):
-    print(f"\nDownloading 12 months of data for {len(tickers)} tickers...")
+    print(f"\nDownloading data for {len(tickers)} tickers...")
     all_data = {}
-    batch_size = 20                      # down from 40
-    total_batches = math.ceil(len(tickers) / batch_size)
 
-    end_date = datetime.today() + timedelta(days=1)
-    start_date = end_date - timedelta(days=365)
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+    })
 
-    for i in range(0, len(tickers), batch_size):
-        batch = tickers[i:i + batch_size]
-        current_batch = (i // batch_size) + 1
-        print(f"  Batch {current_batch}/{total_batches}...")
+    failed = []
 
-        for attempt in range(3):          # retry up to 3x on rate limit
+    for i, t in enumerate(tickers):
+        if i % 50 == 0:
+            print(f"  {i}/{len(tickers)} — {len(all_data)} loaded so far...")
+
+        for attempt in range(4):
             try:
-                raw = yf.download(
-                    batch,
-                    start=start_date.strftime('%Y-%m-%d'),
-                    end=end_date.strftime('%Y-%m-%d'),
-                    interval="1d",
+                df = yf.Ticker(t, session=session).history(
+                    period='1y',
+                    interval='1d',
                     auto_adjust=True,
-                    progress=False,
-                    threads=False,        # prevents SQLite lock
+                    raise_errors=True,
                 )
+
+                if df.empty or len(df) < 130:
+                    break
+
+                df['SMA20']  = df['Close'].rolling(20).mean()
+                df['SMA10']  = df['Close'].rolling(10).mean()
+                df['ADR']    = ((df['High'] - df['Low']) / df['Close']).rolling(14).mean()
+                df['ATR']    = (df['High'] - df['Low']).rolling(14).mean()
+                df['AvgVol'] = df['Volume'].rolling(20).mean()
+                df['DolVol'] = df['Close'] * df['AvgVol']
+                df = df.dropna()
+
+                if not df.empty:
+                    all_data[t] = df
                 break
+
             except Exception as e:
                 msg = str(e)
-                if 'Rate' in msg or '429' in msg:
-                    wait = (attempt + 1) * 30   # 30s, 60s, 90s
-                    print(f"  Rate limited. Waiting {wait}s before retry...")
+                if 'Rate' in msg or '429' in msg or 'Too Many' in msg:
+                    wait = (2 ** attempt) * 20   # 20s, 40s, 80s, 160s
+                    print(f"  Rate limited at {t} (attempt {attempt+1}). Waiting {wait}s...")
                     time.sleep(wait)
                 else:
-                    print(f"  Batch error: {e}")
-                    raw = None
+                    failed.append(t)
                     break
-        else:
-            print(f"  Skipping batch after 3 failed attempts")
-            continue
 
-        if raw is None or raw.empty:
-            continue
+        time.sleep(0.4)   # 0.4s between every ticker = ~150/min, well under Yahoo's limit
 
-        for t in batch:
-            try:
-                if isinstance(raw.columns, pd.MultiIndex):
-                    if t in raw.columns.get_level_values(0):
-                        df = raw[t].dropna()
-                    elif t in raw.columns.get_level_values(1):
-                        df = raw.xs(t, axis=1, level=1).dropna()
-                    else:
-                        continue
-                else:
-                    df = raw.dropna()
+    if failed:
+        print(f"  {len(failed)} tickers failed (data unavailable, not rate limits)")
 
-                if not df.empty and len(df) > 130:
-                    df['SMA20'] = df['Close'].rolling(20).mean()
-                    df['SMA10'] = df['Close'].rolling(10).mean()
-                    df['ADR'] = ((df['High'] - df['Low']) / df['Close']).rolling(14).mean()
-                    df['ATR'] = (df['High'] - df['Low']).rolling(14).mean()
-                    df['AvgVol'] = df['Volume'].rolling(20).mean()
-                    df['DolVol'] = df['Close'] * df['AvgVol']
-                    all_data[t] = df.dropna()
-            except:
-                pass
-
-        time.sleep(5)                     # up from 2s
-
-    print(f"  Got data for {len(all_data)} stocks")
+    print(f"  Done. Got data for {len(all_data)} stocks.")
     return all_data
 
 # ── Scanner (unchanged algorithm) ────────────────────────────────────────────
