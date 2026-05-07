@@ -34,6 +34,14 @@ SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 db = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+def update_progress(status, done=0, total=0):
+    db.table('scanner_progress').update({
+        'status': status,
+        'tickers_done': done,
+        'tickers_total': total,
+        'updated_at': datetime.utcnow().isoformat(),
+    }).eq('id', 1).execute()
+
 # ── Parameters (unchanged) ───────────────────────────────────────────────────
 PARAM_SET = {
     'DOLLAR_VOLUME_MIN': 25_000_000,
@@ -87,9 +95,9 @@ def download_data(tickers):
     failed = []
 
     for i, t in enumerate(tickers):
-        if i % 50 == 0:
+       if i % 50 == 0:
             print(f"  {i}/{len(tickers)} — {len(all_data)} loaded so far...")
-
+            update_progress('downloading', i, len(tickers))
         for attempt in range(4):
             try:
                 df = yf.Ticker(t, session=session).history(
@@ -202,7 +210,8 @@ def scan_stock_history(args):
 if __name__ == "__main__":
     multiprocessing.set_start_method('fork')
     cores = multiprocessing.cpu_count()
-
+    
+    update_progress('running', 0, 0)   # ← add this line
     print("=" * 70)
     print(f"  QULLAMAGGIE SCANNER  |  {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}")
     print("=" * 70)
@@ -210,10 +219,19 @@ if __name__ == "__main__":
     tickers = get_market_tickers()
     all_data = download_data(tickers)
 
-    print(f"\nScanning {len(all_data)} stocks across {cores} cores...")
+ tickers = get_market_tickers()
+    update_progress('downloading', 0, len(tickers))
+    
+    all_data = download_data(tickers)
+    update_progress('scanning', 0, len(all_data))
 
-    work_items = [(t, df, PARAM_SET) for t, df in all_data.items()]
-    all_flags = []
+    print(f"\nScanning {len(all_data)} stocks across {cores} cores...")
+    # ... existing scan code ...
+
+    update_progress('saving', len(all_flags), len(all_data))
+    # ... existing Supabase write code ...
+
+    update_progress('idle', len(all_flags), len(all_data))
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
         for result in executor.map(scan_stock_history, work_items):
