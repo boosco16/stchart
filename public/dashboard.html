@@ -36,7 +36,7 @@
     .err-msg { color: red; font-size: 11px; min-height: 14px; margin-top: 2px; }
     .progress-bar-wrap { margin-bottom: 4px; }
     .p-track { background: #808080; height: 16px; border: 2px solid; border-color: #808080 #fff #fff #808080; position: relative; }
-    .p-fill { background: #000080; height: 100%; transition: width 0.5s; }
+    .p-fill { background: #000080; height: 100%; transition: width 0.5s; min-width: 4px; }
     .p-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; color: #fff; font-size: 10px; line-height: 16px; mix-blend-mode: difference; }
     .filter-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
     .filter-row input { margin: 0; width: 140px; }
@@ -106,7 +106,7 @@
           <div id="progress-wrap" style="display:none" class="panel progress-bar-wrap">
             <div class="panel-label" id="progress-label">Scanner running...</div>
             <div class="p-track">
-              <div class="p-fill" id="progress-fill" style="width:0%"></div>
+              <div class="p-fill" id="progress-fill" style="width:2%"></div>
               <div class="p-text" id="progress-count"></div>
             </div>
             <div style="font-size:10px;color:#808080;margin-top:2px" id="progress-updated"></div>
@@ -362,7 +362,7 @@
           saving: 'Saving results...'
         }
         document.getElementById('progress-label').textContent = labels[p.status] || p.status
-        document.getElementById('progress-fill').style.width = pct + '%'
+        document.getElementById('progress-fill').style.width = Math.max(pct, 2) + '%'
         document.getElementById('progress-count').textContent = p.tickers_total > 0
           ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)`
           : 'Starting...'
