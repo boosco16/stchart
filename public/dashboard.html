@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwingTrader — Dashboard</title>
+  <link rel="stylesheet" href="/shared.css" />
+  <style>
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 18px 20px; }
+    .stat-label { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .stat-val { font-size: 26px; font-weight: 600; color: #fff; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+    .stat-sub { font-size: 12px; color: #444; margin-top: 4px; }
+    .top-movers { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 20px 24px; }
+    .section-title { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .mover-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #161616; }
+    .mover-row:last-child { border-bottom: none; }
+    .mover-ticker { font-size: 15px; font-weight: 600; color: #fff; width: 70px; }
+    .mover-name { font-size: 12px; color: #444; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mover-price { font-size: 14px; font-weight: 500; color: #ccc; font-variant-numeric: tabular-nums; width: 80px; text-align: right; }
+    .mover-change { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; width: 70px; text-align: right; }
+    .mover-pnl { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; width: 90px; text-align: right; }
+    .buzz-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px; }
+    .buzz-hot { background: #2d1200; color: #f5a623; }
+    .buzz-mid { background: #1e1a00; color: #d4a800; }
+    .buzz-low { background: #161616; color: #444; }
+    .empty { color: #333; font-size: 14px; text-align: center; padding: 40px 0; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .grid2 { grid-template-columns: 1fr; } .mover-name { display: none; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/dashboard">📈 SwingTrader</a>
+    <a class="nav-link active" href="/dashboard">Dashboard</a>
+    <a class="nav-link" href="/watchlist">Watchlist</a>
+    <a class="nav-link" href="/calculator">Calculator</a>
+    <div class="nav-right">
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Dashboard</h1>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-label">Unrealized P&L</div>
+        <div class="stat-val green" id="stat-pnl">—</div>
+        <div class="stat-sub" id="stat-pnl-pct">Loading...</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Open Positions</div>
+        <div class="stat-val" id="stat-positions">—</div>
+        <div class="stat-sub muted" id="stat-positions-sub">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Watchlist</div>
+        <div class="stat-val" id="stat-watching">—</div>
+        <div class="stat-sub yellow" id="stat-buzz">—</div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="top-movers">
+        <div class="section-title">Positions P&L</div>
+        <div id="positions-list"><div class="empty muted">Loading...</div></div>
+      </div>
+      <div class="top-movers">
+        <div class="section-title">High volume buzz</div>
+        <div id="buzz-list"><div class="empty muted">Loading...</div></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Auth guard
+    fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' })
+      window.location.href = '/'
+    }
+
+    function fmt(n, decimals = 2) {
+      return n === undefined || n === null ? '—' : n.toFixed(decimals)
+    }
+
+    function buzzClass(b) {
+      return b >= 3 ? 'buzz-pill buzz-hot' : b >= 1.5 ? 'buzz-pill buzz-mid' : 'buzz-pill buzz-low'
+    }
+
+    async function loadDashboard() {
+      const wlRes = await fetch('/api/watchlist')
+      if (!wlRes.ok) return
+      const watchlist = await wlRes.json()
+
+      // Fetch stock data for all tickers in parallel
+      const stockData = {}
+      await Promise.allSettled(watchlist.map(async item => {
+        const r = await fetch(`/api/stocks/${item.ticker}`)
+        if (r.ok) stockData[item.ticker] = await r.json()
+      }))
+
+      // Compute stats
+      const positions = watchlist.filter(w => w.shares > 0 && w.avg_cost)
+      let totalPnl = 0
+      let totalCost = 0
+      positions.forEach(p => {
+        const s = stockData[p.ticker]
+        if (s) {
+          totalPnl += (s.price - p.avg_cost) * p.shares
+          totalCost += p.avg_cost * p.shares
+        }
+      })
+
+      const highBuzz = watchlist.filter(w => stockData[w.ticker]?.volumeBuzz >= 1.5)
+
+      // Update stats
+      const pnlEl = document.getElementById('stat-pnl')
+      pnlEl.textContent = positions.length ? `${totalPnl >= 0 ? '+' : ''}$${Math.abs(totalPnl).toFixed(2)}` : '$0.00'
+      pnlEl.className = `stat-val ${totalPnl >= 0 ? 'green' : 'red'}`
+      document.getElementById('stat-pnl-pct').textContent = totalCost
+        ? `${totalPnl >= 0 ? '+' : ''}${(totalPnl / totalCost * 100).toFixed(2)}% unrealized`
+        : 'No open positions'
+      document.getElementById('stat-positions').textContent = positions.length
+      document.getElementById('stat-positions-sub').textContent = `across ${positions.length} ticker${positions.length !== 1 ? 's' : ''}`
+      document.getElementById('stat-watching').textContent = watchlist.length
+      document.getElementById('stat-buzz').textContent = highBuzz.length
+        ? `${highBuzz.length} elevated volume`
+        : 'No unusual volume'
+
+      // Positions list
+      const posList = document.getElementById('positions-list')
+      if (positions.length === 0) {
+        posList.innerHTML = '<div class="empty muted">No open positions</div>'
+      } else {
+        posList.innerHTML = positions.map(p => {
+          const s = stockData[p.ticker]
+          if (!s) return ''
+          const pnl = (s.price - p.avg_cost) * p.shares
+          const pct = (s.price - p.avg_cost) / p.avg_cost * 100
+          return `<div class="mover-row">
+            <span class="mover-ticker">${p.ticker}</span>
+            <span class="mover-name">${s.name}</span>
+            <span class="mover-price">$${fmt(s.price)}</span>
+            <span class="mover-change ${s.changePct >= 0 ? 'green' : 'red'}">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>
+            <span class="mover-pnl ${pnl >= 0 ? 'green' : 'red'}">${pnl >= 0 ? '+' : ''}$${fmt(Math.abs(pnl))}</span>
+          </div>`
+        }).join('')
+      }
+
+      // Buzz list
+      const buzzList = document.getElementById('buzz-list')
+      const buzzItems = watchlist
+        .filter(w => stockData[w.ticker])
+        .sort((a, b) => (stockData[b.ticker]?.volumeBuzz || 0) - (stockData[a.ticker]?.volumeBuzz || 0))
+        .slice(0, 6)
+
+      if (buzzItems.length === 0) {
+        buzzList.innerHTML = '<div class="empty muted">No tickers in watchlist</div>'
+      } else {
+        buzzList.innerHTML = buzzItems.map(w => {
+          const s = stockData[w.ticker]
+          return `<div class="mover-row">
+            <span class="mover-ticker">${w.ticker}</span>
+            <span class="mover-name">${s.name}</span>
+            <span class="mover-price">$${fmt(s.price)}</span>
+            <span class="mover-change ${s.changePct >= 0 ? 'green' : 'red'}">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>
+            <span class="${buzzClass(s.volumeBuzz)}">${fmt(s.volumeBuzz, 1)}x</span>
+          </div>`
+        }).join('')
+      }
+    }
+
+    loadDashboard()
+    setInterval(loadDashboard, 60000)
+  </script>
+</body>
+</html>

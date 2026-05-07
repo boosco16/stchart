@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwingTrader — Calculator</title>
+  <link rel="stylesheet" href="/shared.css" />
+  <style>
+    .layout { display: grid; grid-template-columns: 420px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+    .calc-card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 24px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .field { display: flex; flex-direction: column; }
+    .field input { width: 100%; }
+    .field-full { margin-bottom: 12px; }
+    .field-full input { width: 100%; }
+
+    input.entry:focus { border-color: #00c97a; }
+    input.stop-loss { color: #ff5555; }
+    input.stop-loss:focus { border-color: #ff5555; }
+    input.target { color: #00c97a; }
+    input.target:focus { border-color: #00c97a; }
+
+    .direction-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      margin-bottom: 16px; margin-top: 4px;
+    }
+    .long-tag { background: #001f12; color: #00c97a; border: 1px solid #004d28; }
+    .short-tag { background: #2a0000; color: #ff5555; border: 1px solid #5a0000; }
+
+    .calc-btn {
+      width: 100%; padding: 13px; border-radius: 10px; font-size: 14px;
+      font-weight: 600; cursor: pointer; border: none; background: #00c97a;
+      color: #000; transition: opacity 0.15s; margin-top: 4px;
+    }
+    .calc-btn:hover { opacity: 0.85; }
+
+    .results { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 24px; }
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .result-card { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 10px; padding: 16px; }
+    .result-label { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .result-val { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; }
+    .result-sub { font-size: 12px; color: #444; margin-top: 4px; }
+
+    .rr-good { color: #00c97a; }
+    .rr-ok { color: #f5a623; }
+    .rr-bad { color: #ff5555; }
+
+    .summary {
+      margin-top: 20px; background: #0d0d0d; border: 1px solid #1a1a1a;
+      border-radius: 10px; padding: 16px;
+    }
+    .summary-title { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+    .summary-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #161616; font-size: 13px; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-key { color: #555; }
+    .summary-val { color: #ccc; font-variant-numeric: tabular-nums; }
+
+    .empty-results { color: #333; text-align: center; padding: 60px 20px; font-size: 14px; }
+
+    .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+    .preset-btn {
+      font-size: 12px; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+      background: #161616; border: 1px solid #222; color: #666; transition: all 0.15s;
+    }
+    .preset-btn:hover { color: #ccc; border-color: #444; }
+    .preset-section-label { font-size: 10px; color: #333; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/dashboard">📈 SwingTrader</a>
+    <a class="nav-link" href="/dashboard">Dashboard</a>
+    <a class="nav-link" href="/watchlist">Watchlist</a>
+    <a class="nav-link active" href="/calculator">Calculator</a>
+    <div class="nav-right">
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Position Size Calculator</h1>
+
+    <div class="layout">
+      <!-- Calculator inputs -->
+      <div class="calc-card">
+        <div class="preset-section-label">Risk presets</div>
+        <div class="presets">
+          <button class="preset-btn" onclick="setRisk(0.5)">0.5%</button>
+          <button class="preset-btn" onclick="setRisk(1)">1%</button>
+          <button class="preset-btn" onclick="setRisk(1.5)">1.5%</button>
+          <button class="preset-btn" onclick="setRisk(2)">2%</button>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Account Size ($)</label>
+            <input type="number" id="account" value="100000" min="0" step="1000" oninput="liveCalc()" />
+          </div>
+          <div class="field">
+            <label>Risk Per Trade (%)</label>
+            <input type="number" id="risk" value="1" min="0.1" max="10" step="0.1" oninput="liveCalc()" />
+          </div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label>Entry Price</label>
+            <input class="entry" type="number" id="entry" step="0.01" placeholder="0.00" oninput="liveCalc()" />
+          </div>
+          <div class="field">
+            <label>Stop Loss</label>
+            <input class="stop-loss" type="number" id="stop" step="0.01" placeholder="0.00" oninput="liveCalc()" />
+          </div>
+        </div>
+
+        <div class="field-full">
+          <label>Target Price (optional)</label>
+          <input class="target" type="number" id="target" step="0.01" placeholder="0.00" oninput="liveCalc()" />
+        </div>
+
+        <div id="dir-tag"></div>
+        <button class="calc-btn" onclick="liveCalc()">Calculate</button>
+      </div>
+
+      <!-- Results -->
+      <div class="results">
+        <div id="results-content">
+          <div class="empty-results">Enter entry and stop loss prices to calculate position size.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' })
+      window.location.href = '/'
+    }
+
+    function setRisk(pct) {
+      document.getElementById('risk').value = pct
+      liveCalc()
+    }
+
+    function fmt(n, d = 2) { return Number(n).toFixed(d) }
+    function fmtCurrency(n) { return '$' + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }
+
+    function liveCalc() {
+      const account = parseFloat(document.getElementById('account').value)
+      const riskPct = parseFloat(document.getElementById('risk').value)
+      const entry = parseFloat(document.getElementById('entry').value)
+      const stop = parseFloat(document.getElementById('stop').value)
+      const target = parseFloat(document.getElementById('target').value) || null
+
+      // Direction tag
+      const dirTag = document.getElementById('dir-tag')
+      if (entry && stop && entry !== stop) {
+        const isLong = stop < entry
+        const rps = Math.abs(entry - stop)
+        dirTag.innerHTML = `<div class="direction-tag ${isLong ? 'long-tag' : 'short-tag'}">
+          ${isLong ? '▲ LONG' : '▼ SHORT'} &nbsp;·&nbsp; $${fmt(rps)} risk/share
+        </div>`
+      } else {
+        dirTag.innerHTML = ''
+      }
+
+      if (!account || !riskPct || !entry || !stop || entry === stop) {
+        return
+      }
+
+      const dollarRisk = account * (riskPct / 100)
+      const riskPerShare = Math.abs(entry - stop)
+      const shares = Math.floor(dollarRisk / riskPerShare)
+      const positionSize = shares * entry
+      const pctOfAccount = (positionSize / account) * 100
+      const isLong = stop < entry
+
+      let rr = null
+      let reward = null
+      if (target) {
+        reward = Math.abs(target - entry) * shares
+        rr = Math.abs(target - entry) / riskPerShare
+      }
+
+      const rrClass = rr ? (rr >= 3 ? 'rr-good' : rr >= 2 ? 'rr-ok' : 'rr-bad') : ''
+
+      document.getElementById('results-content').innerHTML = `
+        <div class="results-grid">
+          <div class="result-card">
+            <div class="result-label">Shares to ${isLong ? 'Buy' : 'Short'}</div>
+            <div class="result-val green">${shares.toLocaleString()}</div>
+            <div class="result-sub">${fmtCurrency(positionSize)} position</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Max Dollar Risk</div>
+            <div class="result-val red">${fmtCurrency(dollarRisk)}</div>
+            <div class="result-sub">${fmt(riskPct)}% of account</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Position Size</div>
+            <div class="result-val">${fmtCurrency(positionSize)}</div>
+            <div class="result-sub">${fmt(pctOfAccount)}% of account</div>
+          </div>
+          <div class="result-card">
+            <div class="result-label">Risk : Reward</div>
+            <div class="result-val ${rrClass}">
+              ${rr ? '1 : ' + fmt(rr) : '<span class="muted" style="font-size:16px">No target</span>'}
+            </div>
+            <div class="result-sub">
+              ${reward ? 'Max gain: ' + fmtCurrency(reward) : 'Set a target price'}
+            </div>
+          </div>
+        </div>
+
+        <div class="summary">
+          <div class="summary-title">Trade Summary</div>
+          <div class="summary-row">
+            <span class="summary-key">Direction</span>
+            <span class="summary-val ${isLong ? 'green' : 'red'}">${isLong ? '▲ Long' : '▼ Short'}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Entry</span>
+            <span class="summary-val">$${fmt(entry)}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Stop Loss</span>
+            <span class="summary-val red">$${fmt(stop)} (${fmt(Math.abs(entry - stop) / entry * 100)}% away)</span>
+          </div>
+          ${target ? `<div class="summary-row">
+            <span class="summary-key">Target</span>
+            <span class="summary-val green">$${fmt(target)} (${fmt(Math.abs(target - entry) / entry * 100)}% away)</span>
+          </div>` : ''}
+          <div class="summary-row">
+            <span class="summary-key">Break-even (approx)</span>
+            <span class="summary-val">$${fmt(entry)}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Account risk</span>
+            <span class="summary-val">${fmt(riskPct)}% = ${fmtCurrency(dollarRisk)}</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Capital deployed</span>
+            <span class="summary-val">${fmt(pctOfAccount)}% of account</span>
+          </div>
+        </div>
+      `
+    }
+  </script>
+</body>
+</html>
