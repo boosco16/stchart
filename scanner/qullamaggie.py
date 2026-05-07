@@ -154,17 +154,16 @@ def download_data(tickers):
                 success = True
                 break
 
-            except Exception as e:
+          except Exception as e:
                 msg = str(e)
                 if 'Rate' in msg or '429' in msg or 'Too Many' in msg:
                     rate_limited += 1
-                    wait = (attempt + 1) * 10   # 10s then 20s — never more
-                    print(f"  Rate limited: {t} (attempt {attempt+1}) waiting {wait}s...", flush=True)
-                    time.sleep(wait)
+                    print(f"  Rate limited: {t} — skipping", flush=True)
+                    time.sleep(2)
+                    break
                 else:
                     failed += 1
                     break
-
         time.sleep(0.8)
 
     print(f"\n  Done. Loaded={len(all_data)} | Timeouts={timed_out} | "
