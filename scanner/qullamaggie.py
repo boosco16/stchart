@@ -35,15 +35,19 @@ SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 db = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def update_progress(status, done=0, total=0):
-    try:
-        db.table('scanner_progress').update({
-            'status': status,
-            'tickers_done': done,
-            'tickers_total': total,
-            'updated_at': datetime.utcnow().isoformat(),
-        }).eq('id', 1).execute()
-    except Exception as e:
-        print(f"  Progress update failed: {e}")
+    for attempt in range(3):
+        try:
+            db.table('scanner_progress').update({
+                'status': status,
+                'tickers_done': done,
+                'tickers_total': total,
+                'updated_at': datetime.utcnow().isoformat(),
+            }).eq('id', 1).execute()
+            print(f"  [progress] {status} {done}/{total}", flush=True)
+            return
+        except Exception as e:
+            print(f"  Progress update failed (attempt {attempt+1}): {e}", flush=True)
+            time.sleep(2)
 
 # ── Parameters ───────────────────────────────────────────────────────────────
 PARAM_SET = {
@@ -98,7 +102,7 @@ def download_data(tickers):
     failed = []
 
     for i, t in enumerate(tickers):
-        if i % 50 == 0:
+        if i % 25 == 0:
             print(f"  {i}/{len(tickers)} — {len(all_data)} loaded so far...")
             update_progress('downloading', i, len(tickers))
 
