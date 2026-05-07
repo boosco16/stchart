@@ -2,14 +2,13 @@ name: Stock Scanner
 
 on:
   schedule:
-    - cron: '45 13 * * 1-5'   # 9:45 AM ET (market open)
     - cron: '0 18 * * 1-5'    # 2:00 PM ET (mid-session)
   workflow_dispatch:            # lets you also trigger it manually from GitHub
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 360
 
     steps:
       - name: Checkout repo
