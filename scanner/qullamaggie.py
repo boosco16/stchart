@@ -14,19 +14,20 @@ os.environ['YF_NO_CACHE'] = '1'
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.NotOpenSSLWarning)
 
-import yfinance as yf
-yf.set_tz_cache_location("/tmp/yf_cache")
-# Clear any stale cache from previous runs
 import shutil
+import yfinance as yf
+
+# Clear stale cache before every run
 if os.path.exists("/tmp/yf_cache"):
     shutil.rmtree("/tmp/yf_cache")
-    os.makedirs("/tmp/yf_cache")
+os.makedirs("/tmp/yf_cache", exist_ok=True)
+yf.set_tz_cache_location("/tmp/yf_cache")
+
 import pandas as pd
 import numpy as np
 import requests
 import warnings
 import time
-import math
 import multiprocessing
 import concurrent.futures
 from datetime import datetime, timedelta
@@ -92,10 +93,24 @@ def get_market_tickers():
     print(f"  Found {len(tickers)} tickers")
     return tickers
 
+# ── Single ticker fetch with hard timeout ────────────────────────────────────
+def fetch_one(t, session):
+    """Fetch one ticker. Runs in a thread so we can enforce a hard timeout."""
+    df = yf.Ticker(t, session=session).history(
+        period='1y',
+        interval='1d',
+        auto_adjust=True,
+        raise_errors=True,
+    )
+    return df
+
 # ── Download data ─────────────────────────────────────────────────────────────
 def download_data(tickers):
-    print(f"\nDownloading data for {len(tickers)} tickers...")
+    print(f"\nDownloading data for {len(tickers)} tickers...", flush=True)
     all_data = {}
+    timed_out = 0
+    rate_limited = 0
+    failed = 0
 
     session = requests.Session()
     session.headers.update({
@@ -104,23 +119,26 @@ def download_data(tickers):
         'Accept-Language': 'en-US,en;q=0.9',
     })
 
-    failed = []
-
     for i, t in enumerate(tickers):
         if i % 25 == 0:
-            print(f"  {i}/{len(tickers)} — {len(all_data)} loaded so far...")
+            print(f"  {i}/{len(tickers)} — {len(all_data)} loaded | "
+                  f"timeouts={timed_out} rate_limits={rate_limited} failed={failed}", flush=True)
             update_progress('downloading', i, len(tickers))
 
-        for attempt in range(4):
+        success = False
+        for attempt in range(2):
             try:
-                df = yf.Ticker(t, session=session).history(
-                    period='1y',
-                    interval='1d',
-                    auto_adjust=True,
-                    raise_errors=True,
-                )
+                # Hard 20-second timeout per ticker via thread
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as tex:
+                    future = tex.submit(fetch_one, t, session)
+                    try:
+                        df = future.result(timeout=20)
+                    except concurrent.futures.TimeoutError:
+                        timed_out += 1
+                        print(f"  Timeout: {t} — skipping", flush=True)
+                        break
 
-                if df.empty or len(df) < 130:
+                if df is None or df.empty or len(df) < 130:
                     break
 
                 df['SMA20']  = df['Close'].rolling(20).mean()
@@ -133,24 +151,24 @@ def download_data(tickers):
 
                 if not df.empty:
                     all_data[t] = df
+                success = True
                 break
 
             except Exception as e:
                 msg = str(e)
                 if 'Rate' in msg or '429' in msg or 'Too Many' in msg:
-                    wait = (2 ** attempt) * 20
-                    print(f"  Rate limited at {t} (attempt {attempt+1}). Waiting {wait}s...")
+                    rate_limited += 1
+                    wait = (attempt + 1) * 10   # 10s then 20s — never more
+                    print(f"  Rate limited: {t} (attempt {attempt+1}) waiting {wait}s...", flush=True)
                     time.sleep(wait)
                 else:
-                    failed.append(t)
+                    failed += 1
                     break
 
-        time.sleep(0.4)
+        time.sleep(0.8)
 
-    if failed:
-        print(f"  {len(failed)} tickers failed (data unavailable)")
-
-    print(f"  Done. Got data for {len(all_data)} stocks.")
+    print(f"\n  Done. Loaded={len(all_data)} | Timeouts={timed_out} | "
+          f"RateLimited={rate_limited} | Failed={failed}", flush=True)
     return all_data
 
 # ── Scanner ───────────────────────────────────────────────────────────────────
@@ -236,7 +254,7 @@ if __name__ == "__main__":
     all_data = download_data(tickers)
     update_progress('scanning', 0, len(all_data))
 
-    print(f"\nScanning {len(all_data)} stocks across {cores} cores...")
+    print(f"\nScanning {len(all_data)} stocks across {cores} cores...", flush=True)
 
     work_items = [(t, df, PARAM_SET) for t, df in all_data.items()]
     all_flags = []
@@ -246,7 +264,7 @@ if __name__ == "__main__":
             if result:
                 all_flags.extend(result)
 
-    print(f"Scan complete. {len(all_flags)} total setup instances found.")
+    print(f"Scan complete. {len(all_flags)} total setup instances found.", flush=True)
 
     update_progress('saving', len(all_flags), len(all_data))
 
@@ -254,7 +272,7 @@ if __name__ == "__main__":
     cutoff = today - timedelta(days=7)
     recent_flags = [(t, d) for t, d in all_flags if pd.Timestamp(d).date() >= cutoff]
 
-    print(f"{len(recent_flags)} recent setups (last 7 days)")
+    print(f"{len(recent_flags)} recent setups (last 7 days)", flush=True)
 
     scanned_at = datetime.utcnow().isoformat()
     old_cutoff = (today - timedelta(days=60)).isoformat()
@@ -270,11 +288,12 @@ if __name__ == "__main__":
             for t, d in recent_flags
         ]
         db.table('scanner_results').upsert(rows, on_conflict='ticker,setup_date').execute()
-        print(f"Saved {len(rows)} results to Supabase.")
+        print(f"Saved {len(rows)} results to Supabase.", flush=True)
         for t, d in sorted(recent_flags, key=lambda x: x[1], reverse=True):
             print(f"  {pd.Timestamp(d).strftime('%Y-%m-%d')}  {t}")
     else:
         print("No setups from the last 7 days.")
 
     update_progress('idle', len(all_flags), len(all_data))
-    print("\nDone.")
+    print("\nDone.", flush=True)
+    
