@@ -16,6 +16,11 @@ urllib3.disable_warnings(urllib3.exceptions.NotOpenSSLWarning)
 
 import yfinance as yf
 yf.set_tz_cache_location("/tmp/yf_cache")
+# Clear any stale cache from previous runs
+import shutil
+if os.path.exists("/tmp/yf_cache"):
+    shutil.rmtree("/tmp/yf_cache")
+    os.makedirs("/tmp/yf_cache")
 import pandas as pd
 import numpy as np
 import requests
