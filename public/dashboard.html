@@ -171,19 +171,19 @@
     function updateNextScan() {
       const now = new Date()
       const utc = now.getTime() + now.getTimezoneOffset() * 60000
-      const etOffset = -5 * 60 * 60000
-      const nowET = new Date(utc + etOffset)
-      let next = new Date(nowET)
-      next.setHours(9, 45, 0, 0)
-      if (nowET >= next) next.setDate(next.getDate() + 1)
+      const pdtOffset = -7 * 60 * 60000
+      const nowPT = new Date(utc + pdtOffset)
+      let next = new Date(nowPT)
+      next.setHours(15, 0, 0, 0)
+      if (nowPT >= next) next.setDate(next.getDate() + 1)
       while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1)
-      const diffMs = next - nowET
+      const diffMs = next - nowPT
       const h = Math.floor(diffMs / 3600000)
       const m = Math.floor((diffMs % 3600000) / 60000)
       const s = Math.floor((diffMs % 60000) / 1000)
       const ct = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
       const day = next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-      document.getElementById('next-scan').textContent = `Next scan: ${day} 9:45 AM ET (in ${ct})`
+      document.getElementById('next-scan').textContent = `Next scan: ${day} 3:00 PM PST (in ${ct})`
     }
     updateNextScan()
     setInterval(updateNextScan, 1000)
@@ -307,7 +307,7 @@
       rows.sort((a, b) => { const av = a[sortCol]||'', bv = b[sortCol]||''; return av < bv ? -sortDir : av > bv ? sortDir : 0 })
       document.getElementById('count').textContent = rows.length + ' result' + (rows.length !== 1 ? 's' : '')
       if (!rows.length) {
-        document.getElementById('scan-body').innerHTML = '<tr><td colspan="4" class="scan-empty">No results. Scanner runs at 9:45 AM ET weekdays.</td></tr>'
+        document.getElementById('scan-body').innerHTML = '<tr><td colspan="4" class="scan-empty">No results. Scanner runs at 3:00 PM PST weekdays.</td></tr>'
         return
       }
       document.getElementById('scan-body').innerHTML = rows.map(r => {
@@ -355,11 +355,20 @@
       if (active) {
         wasActive = true
         const pct = p.tickers_total > 0 ? Math.round(p.tickers_done / p.tickers_total * 100) : 0
-        const labels = { running: 'Starting scanner...', downloading: 'Downloading market data...', scanning: 'Scanning for setups...', saving: 'Saving results...' }
+        const labels = {
+          running: 'Starting scanner...',
+          downloading: 'Downloading market data...',
+          scanning: 'Scanning for setups...',
+          saving: 'Saving results...'
+        }
         document.getElementById('progress-label').textContent = labels[p.status] || p.status
         document.getElementById('progress-fill').style.width = pct + '%'
-        document.getElementById('progress-count').textContent = p.tickers_total > 0 ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)` : ''
-        document.getElementById('progress-updated').textContent = p.updated_at ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString() : ''
+        document.getElementById('progress-count').textContent = p.tickers_total > 0
+          ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)`
+          : 'Starting...'
+        document.getElementById('progress-updated').textContent = p.updated_at
+          ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString()
+          : ''
       } else if (wasActive) {
         wasActive = false
         document.getElementById('status-main').textContent = 'Scan complete — loading results...'
@@ -368,11 +377,15 @@
       }
     }
 
-    loadWatchlist()
-    loadScanner()
-    loadProgress()
-    setInterval(loadProgress, 3000)
-    setInterval(loadScanner, 300000)
+    async function init() {
+      await loadProgress()
+      loadWatchlist()
+      loadScanner()
+      setInterval(loadProgress, 3000)
+      setInterval(loadScanner, 300000)
+    }
+
+    init()
   </script>
 </body>
 </html>
