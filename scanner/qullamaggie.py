@@ -17,7 +17,6 @@ urllib3.disable_warnings(urllib3.exceptions.NotOpenSSLWarning)
 import shutil
 import yfinance as yf
 
-# Clear stale cache before every run
 if os.path.exists("/tmp/yf_cache"):
     shutil.rmtree("/tmp/yf_cache")
 os.makedirs("/tmp/yf_cache", exist_ok=True)
@@ -35,7 +34,6 @@ from supabase import create_client
 
 warnings.filterwarnings("ignore")
 
-# ── Supabase client ──────────────────────────────────────────────────────────
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 db = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -55,7 +53,6 @@ def update_progress(status, done=0, total=0):
             print(f"  Progress update failed (attempt {attempt+1}): {e}", flush=True)
             time.sleep(2)
 
-# ── Parameters ───────────────────────────────────────────────────────────────
 PARAM_SET = {
     'DOLLAR_VOLUME_MIN': 25_000_000,
     'ADR_MIN': 0.05,
@@ -72,7 +69,6 @@ PARAM_SET = {
     'PERF_6M_MIN': 0.50
 }
 
-# ── Fetch tickers ────────────────────────────────────────────────────────────
 def get_market_tickers():
     print("Fetching NASDAQ & NYSE tickers...")
     headers = {"User-Agent": "Mozilla/5.0"}
@@ -93,9 +89,7 @@ def get_market_tickers():
     print(f"  Found {len(tickers)} tickers")
     return tickers
 
-# ── Single ticker fetch with hard timeout ────────────────────────────────────
 def fetch_one(t, session):
-    """Fetch one ticker. Runs in a thread so we can enforce a hard timeout."""
     df = yf.Ticker(t, session=session).history(
         period='1y',
         interval='1d',
@@ -104,7 +98,6 @@ def fetch_one(t, session):
     )
     return df
 
-# ── Download data ─────────────────────────────────────────────────────────────
 def download_data(tickers):
     print(f"\nDownloading data for {len(tickers)} tickers...", flush=True)
     all_data = {}
@@ -121,14 +114,11 @@ def download_data(tickers):
 
     for i, t in enumerate(tickers):
         if i % 25 == 0:
-            print(f"  {i}/{len(tickers)} — {len(all_data)} loaded | "
-                  f"timeouts={timed_out} rate_limits={rate_limited} failed={failed}", flush=True)
+            print(f"  {i}/{len(tickers)} — {len(all_data)} loaded | timeouts={timed_out} rate_limits={rate_limited} failed={failed}", flush=True)
             update_progress('downloading', i, len(tickers))
 
-        success = False
         for attempt in range(2):
             try:
-                # Hard 20-second timeout per ticker via thread
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as tex:
                     future = tex.submit(fetch_one, t, session)
                     try:
@@ -151,10 +141,9 @@ def download_data(tickers):
 
                 if not df.empty:
                     all_data[t] = df
-                success = True
                 break
 
-          except Exception as e:
+            except Exception as e:
                 msg = str(e)
                 if 'Rate' in msg or '429' in msg or 'Too Many' in msg:
                     rate_limited += 1
@@ -164,13 +153,12 @@ def download_data(tickers):
                 else:
                     failed += 1
                     break
+
         time.sleep(0.8)
 
-    print(f"\n  Done. Loaded={len(all_data)} | Timeouts={timed_out} | "
-          f"RateLimited={rate_limited} | Failed={failed}", flush=True)
+    print(f"\n  Done. Loaded={len(all_data)} | Timeouts={timed_out} | RateLimited={rate_limited} | Failed={failed}", flush=True)
     return all_data
 
-# ── Scanner ───────────────────────────────────────────────────────────────────
 def scan_stock_history(args):
     ticker, df, p = args
     found_flags = []
@@ -236,7 +224,6 @@ def scan_stock_history(args):
 
     return found_flags
 
-# ── Main ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     multiprocessing.set_start_method('fork')
     cores = multiprocessing.cpu_count()
@@ -295,4 +282,3 @@ if __name__ == "__main__":
 
     update_progress('idle', len(all_flags), len(all_data))
     print("\nDone.", flush=True)
-    
