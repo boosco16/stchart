@@ -6,178 +6,233 @@
   <title>SwingTrader — Watchlist</title>
   <link rel="stylesheet" href="/shared.css" />
   <style>
-    .add-bar { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 24px; flex-wrap: wrap; }
-    .add-bar .field { display: flex; flex-direction: column; }
-    .add-bar input { width: 120px; }
-    .add-bar input.ticker { width: 90px; text-transform: uppercase; font-weight: 600; }
-    .wl-wrap { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; overflow: hidden; }
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    /* Calculator */
+    .calc { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 20px; position: sticky; top: 72px; }
+    .calc h2 { font-size: 13px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .calc input[type="text"], .calc input[type="number"] { width: 100%; margin-bottom: 10px; }
+    .calc-result { margin-top: 16px; padding-top: 16px; border-top: 1px solid #1a1a1a; }
+    .result-row { display: flex; justify-content: space-between; align-items: baseline; padding: 6px 0; font-size: 13px; }
+    .result-row:not(:last-child) { border-bottom: 1px solid #141414; }
+    .result-key { color: #444; }
+    .result-val { font-variant-numeric: tabular-nums; color: #ccc; }
+    .position-size { font-size: 32px; font-weight: 700; color: #00c97a; letter-spacing: -1px; font-variant-numeric: tabular-nums; margin: 12px 0 4px; }
+    .position-label { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; }
+    .refresh-bar { margin-top: 14px; display: flex; align-items: center; gap: 8px; }
+    .refresh-track { flex: 1; height: 2px; background: #1a1a1a; border-radius: 1px; }
+    .refresh-fill { height: 2px; background: #00c97a; border-radius: 1px; transition: width 1s linear; }
+    .refresh-label { font-size: 11px; color: #333; white-space: nowrap; }
+    .error-msg { font-size: 12px; color: #ff5555; margin-top: 8px; }
+    .calc-ticker { font-size: 13px; font-weight: 600; color: #fff; text-transform: uppercase; }
+
+    /* Watchlist */
+    .wl-top { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .wl-top input { width: 100px; }
+    .wl-top input.ticker-input { width: 80px; text-transform: uppercase; font-weight: 600; }
+    .wl-card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
-    th {
-      font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px;
-      padding: 12px 16px; text-align: left; border-bottom: 1px solid #1a1a1a;
-      white-space: nowrap;
-    }
-    td { padding: 13px 16px; border-bottom: 1px solid #141414; font-size: 13px; vertical-align: middle; }
+    th { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 14px; text-align: left; border-bottom: 1px solid #1a1a1a; white-space: nowrap; }
+    td { padding: 12px 14px; border-bottom: 1px solid #141414; font-size: 13px; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #131313; }
-    .ticker-cell { font-size: 15px; font-weight: 600; color: #fff; }
-    .name-cell { font-size: 12px; color: #444; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
-    .price-cell { font-variant-numeric: tabular-nums; font-size: 14px; color: #ccc; }
-    .num { font-variant-numeric: tabular-nums; }
-    .buzz-pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 5px; white-space: nowrap; }
+    .ticker-name { font-size: 14px; font-weight: 600; color: #fff; }
+    .co-name { font-size: 11px; color: #333; margin-top: 1px; }
+    .buzz { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
     .buzz-hot { background: #2d1200; color: #f5a623; }
     .buzz-mid { background: #1e1a00; color: #d4a800; }
     .buzz-low { background: #161616; color: #444; }
-    .del-btn { background: none; border: none; color: #2a2a2a; cursor: pointer; font-size: 16px; padding: 4px 8px; border-radius: 6px; transition: color 0.15s; }
-    .del-btn:hover { color: #ff5555; }
-    .empty-row td { color: #333; text-align: center; padding: 48px; }
-    .edit-input { background: #161616; border: 1px solid #00c97a; border-radius: 6px; padding: 4px 8px; color: #fff; font-size: 13px; width: 80px; }
-    .save-btn { background: #001f12; border: 1px solid #00c97a; border-radius: 6px; padding: 3px 8px; color: #00c97a; font-size: 12px; cursor: pointer; }
-    .vol-bar { width: 60px; height: 4px; background: #1a1a1a; border-radius: 2px; margin-top: 4px; }
-    .vol-fill { height: 4px; border-radius: 2px; transition: width 0.3s; }
-    .refresh-note { font-size: 11px; color: #333; text-align: right; margin-top: 10px; }
-    @media (max-width: 700px) {
-      .hide-sm { display: none; }
-    }
+    .del { background: none; border: none; color: #2a2a2a; cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+    .del:hover { color: #ff5555; }
+    .empty { color: #2a2a2a; text-align: center; padding: 40px; }
+    .num { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
   <nav>
     <a class="nav-logo" href="/dashboard">📈 SwingTrader</a>
-    <a class="nav-link" href="/dashboard">Dashboard</a>
+    <a class="nav-link" href="/dashboard">Scanner</a>
     <a class="nav-link active" href="/watchlist">Watchlist</a>
-    <a class="nav-link" href="/calculator">Calculator</a>
-    <div class="nav-right">
-      <button class="logout-btn" onclick="logout()">Sign out</button>
-    </div>
+    <div class="nav-right"><button class="logout-btn" onclick="logout()">Sign out</button></div>
   </nav>
 
   <main>
-    <h1>Watchlist</h1>
+    <div class="layout">
 
-    <div class="add-bar">
-      <div class="field">
+      <!-- CALCULATOR -->
+      <div class="calc">
+        <h2>Position Size</h2>
+
+        <label>Account Value ($)</label>
+        <input type="number" id="account" placeholder="100000" oninput="saveAccount()" />
+
         <label>Ticker</label>
-        <input class="ticker" id="new-ticker" type="text" placeholder="AAPL" maxlength="6" />
-      </div>
-      <div class="field">
-        <label>Avg Cost (optional)</label>
-        <input id="new-cost" type="number" step="0.01" placeholder="e.g. 182.50" />
-      </div>
-      <div class="field">
-        <label>Shares (optional)</label>
-        <input id="new-shares" type="number" step="0.01" placeholder="e.g. 100" />
-      </div>
-      <div class="field">
-        <label>Notes</label>
-        <input id="new-notes" type="text" placeholder="optional" style="width:160px" />
-      </div>
-      <button class="btn btn-green" onclick="addTicker()">+ Add</button>
-    </div>
+        <input type="text" id="calc-ticker" placeholder="AAPL" maxlength="6"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter') startCalc()" />
 
-    <div class="wl-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Ticker</th>
-            <th>Price</th>
-            <th>Change</th>
-            <th>Vol Buzz</th>
-            <th class="hide-sm">VWAP</th>
-            <th class="hide-sm">High / Low</th>
-            <th>Avg Cost</th>
-            <th>Shares</th>
-            <th>Unrealized P&L</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="wl-body">
-          <tr class="empty-row"><td colspan="10">Loading...</td></tr>
-        </tbody>
-      </table>
+        <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="startCalc()">Calculate</button>
+
+        <div class="calc-result" id="calc-result" style="display:none">
+          <div class="position-label">Position Size</div>
+          <div class="position-size" id="pos-size">—</div>
+          <div style="font-size:12px;color:#444;margin-bottom:12px">shares</div>
+
+          <div class="result-row"><span class="result-key">Ticker</span><span class="result-val calc-ticker" id="res-ticker">—</span></div>
+          <div class="result-row"><span class="result-key">Current price</span><span class="result-val" id="res-price">—</span></div>
+          <div class="result-row"><span class="result-key">Day low</span><span class="result-val" id="res-low">—</span></div>
+          <div class="result-row"><span class="result-key">Risk / share</span><span class="result-val" id="res-risk">—</span></div>
+          <div class="result-row"><span class="result-key">1% of account</span><span class="result-val" id="res-dollar-risk">—</span></div>
+
+          <div class="refresh-bar">
+            <div class="refresh-track"><div class="refresh-fill" id="refresh-fill" style="width:100%"></div></div>
+            <span class="refresh-label" id="refresh-label">30s</span>
+          </div>
+        </div>
+        <p class="error-msg" id="calc-error"></p>
+      </div>
+
+      <!-- WATCHLIST -->
+      <div>
+        <div class="wl-top">
+          <div>
+            <label>Ticker</label>
+            <input class="ticker-input" id="new-ticker" type="text" placeholder="AAPL" maxlength="6"
+              onkeydown="if(event.key==='Enter') addTicker()" />
+          </div>
+          <div>
+            <label>Avg Cost</label>
+            <input id="new-cost" type="number" step="0.01" placeholder="optional" />
+          </div>
+          <div>
+            <label>Shares</label>
+            <input id="new-shares" type="number" step="1" placeholder="optional" />
+          </div>
+          <button class="btn btn-green" onclick="addTicker()">+ Add</button>
+        </div>
+
+        <div class="wl-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Ticker</th>
+                <th>Price</th>
+                <th>Change</th>
+                <th>Vol Buzz</th>
+                <th>VWAP</th>
+                <th>Avg Cost</th>
+                <th>P&L</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="wl-body"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+          </table>
+        </div>
+        <p style="font-size:11px;color:#2a2a2a;text-align:right;margin-top:8px" id="wl-updated"></p>
+      </div>
+
     </div>
-    <p class="refresh-note" id="refresh-note"></p>
   </main>
 
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
-    async function logout() {
-      await fetch('/api/logout', { method: 'POST' })
-      window.location.href = '/'
+    async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
+
+    // ── Account value persistence ──
+    const accountInput = document.getElementById('account')
+    accountInput.value = localStorage.getItem('st_account') || ''
+    function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
+
+    // ── Calculator ──
+    let calcTicker = ''
+    let calcTimer = null
+    let countdown = 30
+    let countdownTimer = null
+
+    function startCalc() {
+      const ticker = document.getElementById('calc-ticker').value.trim().toUpperCase()
+      if (!ticker) return
+      calcTicker = ticker
+      clearInterval(calcTimer)
+      clearInterval(countdownTimer)
+      fetchCalc()
+      calcTimer = setInterval(fetchCalc, 30000)
     }
 
+    async function fetchCalc() {
+      const account = parseFloat(document.getElementById('account').value)
+      document.getElementById('calc-error').textContent = ''
+
+      if (!account) {
+        document.getElementById('calc-error').textContent = 'Enter your account value first'
+        return
+      }
+
+      const res = await fetch(`/api/stocks/${calcTicker}`)
+      if (!res.ok) {
+        document.getElementById('calc-error').textContent = `Could not find ticker: ${calcTicker}`
+        return
+      }
+      const s = await res.json()
+
+      const price = s.price
+      const low = s.low
+      const riskPerShare = price - low
+      const dollarRisk = account * 0.01
+      const positionSize = riskPerShare > 0 ? Math.floor(dollarRisk / riskPerShare) : 0
+
+      document.getElementById('calc-result').style.display = 'block'
+      document.getElementById('res-ticker').textContent = calcTicker
+      document.getElementById('pos-size').textContent = positionSize.toLocaleString()
+      document.getElementById('res-price').textContent = '$' + price.toFixed(2)
+      document.getElementById('res-low').textContent = '$' + low.toFixed(2)
+      document.getElementById('res-risk').textContent = riskPerShare > 0 ? '$' + riskPerShare.toFixed(2) : 'N/A (price = low)'
+      document.getElementById('res-dollar-risk').textContent = '$' + dollarRisk.toFixed(2)
+
+      // Countdown bar
+      countdown = 30
+      clearInterval(countdownTimer)
+      countdownTimer = setInterval(() => {
+        countdown--
+        const pct = (countdown / 30) * 100
+        document.getElementById('refresh-fill').style.width = pct + '%'
+        document.getElementById('refresh-label').textContent = countdown + 's'
+        if (countdown <= 0) clearInterval(countdownTimer)
+      }, 1000)
+    }
+
+    // ── Watchlist ──
     const stockCache = {}
     let watchlist = []
 
-    function fmt(n, d = 2) { return (n ?? 0).toFixed(d) }
-    function buzzClass(b) { return b >= 3 ? 'buzz-hot' : b >= 1.5 ? 'buzz-mid' : 'buzz-low' }
+    function buzzClass(b) { return b >= 3 ? 'buzz buzz-hot' : b >= 1.5 ? 'buzz buzz-mid' : 'buzz buzz-low' }
+    function fmt(n, d=2) { return (n ?? 0).toFixed(d) }
 
-    function buzzBar(b) {
-      const pct = Math.min(b / 4 * 100, 100)
-      const color = b >= 3 ? '#f5a623' : b >= 1.5 ? '#d4a800' : '#333'
-      return `<div class="vol-bar"><div class="vol-fill" style="width:${pct}%;background:${color}"></div></div>`
-    }
-
-    function renderPnl(item, stock) {
-      if (!item.avg_cost || !item.shares || !stock) return '<span class="muted">—</span>'
-      const pnl = (stock.price - item.avg_cost) * item.shares
-      const pct = (stock.price - item.avg_cost) / item.avg_cost * 100
-      const cls = pnl >= 0 ? 'green' : 'red'
-      return `<span class="${cls} num">${pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(pnl))}</span>
-              <span class="muted" style="font-size:11px"> (${pct >= 0 ? '+' : ''}${fmt(pct)}%)</span>`
-    }
-
-    function renderRow(item) {
-      const s = stockCache[item.ticker]
-      const priceStr = s ? `$${fmt(s.price)}` : '<span class="muted">—</span>'
-      const changeStr = s
-        ? `<span class="${s.changePct >= 0 ? 'green' : 'red'} num">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>`
-        : '<span class="muted">—</span>'
-      const buzzStr = s
-        ? `<span class="buzz-pill ${buzzClass(s.volumeBuzz)}">${fmt(s.volumeBuzz, 1)}x</span>${buzzBar(s.volumeBuzz)}`
-        : '<span class="muted">—</span>'
-      const vwapStr = s ? `<span class="num muted">$${fmt(s.vwap)}</span>` : '—'
-      const hlStr = s ? `<span class="green num">$${fmt(s.high)}</span> / <span class="red num">$${fmt(s.low)}</span>` : '—'
-      const costStr = item.avg_cost ? `$${fmt(item.avg_cost)}` : '<span class="muted">—</span>'
-      const sharesStr = item.shares > 0 ? `<span class="num">${item.shares}</span>` : '<span class="muted">—</span>'
-
-      return `<tr data-id="${item.id}">
-        <td>
-          <div class="ticker-cell">${item.ticker}</div>
-          <div class="name-cell">${s ? s.name : ''}</div>
-        </td>
-        <td class="price-cell">${priceStr}</td>
-        <td>${changeStr}</td>
-        <td>${buzzStr}</td>
-        <td class="hide-sm">${vwapStr}</td>
-        <td class="hide-sm">${hlStr}</td>
-        <td>${costStr}</td>
-        <td>${sharesStr}</td>
-        <td>${renderPnl(item, s)}</td>
-        <td>
-          <button class="del-btn" onclick="removeTicker('${item.id}')" title="Remove">×</button>
-        </td>
-      </tr>`
+    function renderPnl(item, s) {
+      if (!item.avg_cost || !item.shares || !s) return '<span class="muted">—</span>'
+      const pnl = (s.price - item.avg_cost) * item.shares
+      const pct = (s.price - item.avg_cost) / item.avg_cost * 100
+      return `<span class="${pnl >= 0 ? 'green' : 'red'} num">${pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(pnl))}</span>
+              <span class="muted" style="font-size:11px"> ${pct >= 0 ? '+' : ''}${fmt(pct)}%</span>`
     }
 
     function renderTable() {
       const tbody = document.getElementById('wl-body')
-      if (watchlist.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No tickers yet. Add one above.</td></tr>'
-        return
-      }
-      tbody.innerHTML = watchlist.map(renderRow).join('')
-    }
-
-    async function fetchStocks() {
-      await Promise.allSettled(watchlist.map(async item => {
-        const r = await fetch(`/api/stocks/${item.ticker}`)
-        if (r.ok) stockCache[item.ticker] = await r.json()
-      }))
-      const now = new Date()
-      document.getElementById('refresh-note').textContent =
-        `Last updated ${now.toLocaleTimeString()} · auto-refreshes every 60s`
-      renderTable()
+      if (!watchlist.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No tickers yet.</td></tr>'; return }
+      tbody.innerHTML = watchlist.map(item => {
+        const s = stockCache[item.ticker]
+        return `<tr>
+          <td><div class="ticker-name">${item.ticker}</div><div class="co-name">${s?.name || ''}</div></td>
+          <td class="num">${s ? '$' + fmt(s.price) : '<span class="muted">—</span>'}</td>
+          <td>${s ? `<span class="${s.changePct >= 0 ? 'green' : 'red'} num">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>` : '—'}</td>
+          <td>${s ? `<span class="${buzzClass(s.volumeBuzz)}">${fmt(s.volumeBuzz, 1)}x</span>` : '—'}</td>
+          <td class="num muted">${s?.vwap ? '$' + fmt(s.vwap) : '—'}</td>
+          <td class="muted">${item.avg_cost ? '$' + fmt(item.avg_cost) : '—'}</td>
+          <td>${renderPnl(item, s)}</td>
+          <td><button class="del" onclick="remove('${item.id}')">×</button></td>
+        </tr>`
+      }).join('')
     }
 
     async function loadWatchlist() {
@@ -185,7 +240,12 @@
       if (!r.ok) return
       watchlist = await r.json()
       renderTable()
-      await fetchStocks()
+      await Promise.allSettled(watchlist.map(async item => {
+        const r = await fetch(`/api/stocks/${item.ticker}`)
+        if (r.ok) stockCache[item.ticker] = await r.json()
+      }))
+      renderTable()
+      document.getElementById('wl-updated').textContent = 'Updated ' + new Date().toLocaleTimeString()
     }
 
     async function addTicker() {
@@ -193,36 +253,26 @@
       if (!ticker) return
       const avg_cost = parseFloat(document.getElementById('new-cost').value) || null
       const shares = parseFloat(document.getElementById('new-shares').value) || 0
-      const notes = document.getElementById('new-notes').value.trim() || null
-
       const r = await fetch('/api/watchlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker, avg_cost, shares, notes }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, avg_cost, shares })
       })
-
       if (r.ok) {
         document.getElementById('new-ticker').value = ''
         document.getElementById('new-cost').value = ''
         document.getElementById('new-shares').value = ''
-        document.getElementById('new-notes').value = ''
-        await loadWatchlist()
+        loadWatchlist()
       }
     }
 
-    async function removeTicker(id) {
+    async function remove(id) {
       await fetch(`/api/watchlist/${id}`, { method: 'DELETE' })
       watchlist = watchlist.filter(w => w.id !== id)
       renderTable()
     }
 
-    // Enter key to add
-    document.getElementById('new-ticker').addEventListener('keydown', e => {
-      if (e.key === 'Enter') addTicker()
-    })
-
     loadWatchlist()
-    setInterval(fetchStocks, 60000)
+    setInterval(loadWatchlist, 60000)
   </script>
 </body>
 </html>
