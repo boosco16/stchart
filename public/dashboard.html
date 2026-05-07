@@ -6,182 +6,169 @@
   <title>SwingTrader</title>
   <link rel="stylesheet" href="/shared.css" />
   <style>
-    .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
-    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
-
-    /* Left panel */
-    .left { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 72px; }
-
-    /* Calculator */
-    .calc { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 20px; }
-    .calc h2 { font-size: 13px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
-    .calc input[type="text"], .calc input[type="number"] { width: 100%; margin-bottom: 10px; }
-    .calc-result { margin-top: 14px; padding-top: 14px; border-top: 1px solid #1a1a1a; }
-    .result-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; font-size: 13px; }
-    .result-row:not(:last-child) { border-bottom: 1px solid #141414; }
-    .result-key { color: #444; }
-    .result-val { font-variant-numeric: tabular-nums; color: #ccc; }
-    .position-size { font-size: 30px; font-weight: 700; color: #00c97a; letter-spacing: -1px; font-variant-numeric: tabular-nums; margin: 10px 0 2px; }
-    .position-label { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; }
-    .refresh-bar { margin-top: 12px; display: flex; align-items: center; gap: 8px; }
-    .refresh-track { flex: 1; height: 2px; background: #1a1a1a; border-radius: 1px; }
-    .refresh-fill { height: 2px; background: #00c97a; border-radius: 1px; transition: width 1s linear; }
-    .refresh-label { font-size: 11px; color: #333; white-space: nowrap; }
-    .error-msg { font-size: 12px; color: #ff5555; margin-top: 8px; min-height: 16px; }
-
-    /* Watchlist */
-    .wl { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 20px; }
-    .wl h2 { font-size: 13px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px; }
-    .wl-add { display: flex; gap: 8px; margin-bottom: 12px; }
-    .wl-add input { flex: 1; text-transform: uppercase; font-weight: 600; }
-    .wl-list { display: flex; flex-direction: column; gap: 2px; }
-    .wl-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 6px; }
-    .wl-item:hover { background: #161616; }
-    .wl-ticker { font-size: 14px; font-weight: 600; color: #fff; cursor: pointer; }
-    .wl-ticker:hover { color: #00c97a; }
-    .del { background: none; border: none; color: #2a2a2a; cursor: pointer; font-size: 16px; padding: 2px 4px; line-height: 1; }
-    .del:hover { color: #ff5555; }
-    .wl-empty { font-size: 13px; color: #2a2a2a; padding: 8px 0; }
-
-    /* Scanner */
-    .scanner { }
-    .scan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
-    .scan-meta { font-size: 12px; color: #333; }
-    .scan-card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; overflow: hidden; }
-
-    /* Progress bar */
-    .progress-wrap { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
-    .progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-    .progress-label { font-size: 13px; color: #ccc; }
-    .progress-count { font-size: 12px; color: #444; }
-    .progress-track { background: #1a1a1a; border-radius: 4px; height: 6px; overflow: hidden; }
-    .progress-fill { height: 6px; background: #00c97a; border-radius: 4px; width: 0%; transition: width 0.5s ease; }
-    .progress-updated { font-size: 11px; color: #2a2a2a; margin-top: 8px; }
-
-    table { width: 100%; border-collapse: collapse; }
-    th { font-size: 10px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; border-bottom: 1px solid #1a1a1a; white-space: nowrap; cursor: pointer; user-select: none; }
-    th:hover { color: #888; }
-    th.sorted { color: #00c97a; }
-    td { padding: 11px 16px; border-bottom: 1px solid #141414; font-size: 13px; color: #ccc; vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #131313; }
-    .ticker-cell { font-size: 14px; font-weight: 600; color: #fff; }
-    .date-cell { font-variant-numeric: tabular-nums; color: #555; font-size: 12px; }
-    .today-badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #001f12; color: #00c97a; margin-left: 6px; vertical-align: middle; }
-    .action-btn { font-size: 11px; padding: 3px 8px; border-radius: 5px; background: #161616; border: 1px solid #2a2a2a; color: #555; cursor: pointer; transition: all 0.15s; margin-right: 4px; }
-    .action-btn:hover { color: #00c97a; border-color: #00c97a; background: #001f12; }
-    .action-btn.calc-btn-sm:hover { color: #f5a623; border-color: #f5a623; background: #1a1200; }
-    .empty { color: #2a2a2a; text-align: center; padding: 60px; font-size: 14px; }
-    .filter-input { width: 160px; }
-    .toast { position: fixed; bottom: 24px; right: 24px; background: #001f12; border: 1px solid #00c97a; color: #00c97a; font-size: 13px; padding: 10px 16px; border-radius: 8px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 100; }
-    .toast.show { opacity: 1; }
-    .num { font-variant-numeric: tabular-nums; }
+    body { padding: 4px; min-height: 100vh; display: flex; flex-direction: column; }
+    .main-window { flex: 1; }
+    .main-layout { display: grid; grid-template-columns: 210px 1fr; gap: 6px; }
+    .result-box { border: 2px solid; border-color: #808080 #fff #fff #808080; background: #fff; padding: 6px; margin-top: 6px; }
+    .result-num { font-size: 26px; font-weight: bold; color: #000080; font-family: 'Courier New', monospace; }
+    .result-row { display: flex; justify-content: space-between; border-bottom: 1px solid #d0d0d0; padding: 2px 0; font-size: 11px; }
+    .result-row:last-child { border-bottom: none; }
+    .refresh-track { background: #808080; height: 4px; margin-top: 4px; }
+    .refresh-fill { background: #000080; height: 4px; transition: width 1s linear; }
+    .refresh-txt { font-size: 10px; color: #808080; text-align: right; margin-top: 1px; }
+    .wl-list { border: 2px solid; border-color: #808080 #fff #fff #808080; background: #fff; }
+    .wl-item { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px; border-bottom: 1px solid #e0e0e0; }
+    .wl-item:last-child { border-bottom: none; }
+    .wl-item:hover { background: #000080; color: #fff; }
+    .wl-ticker { font-weight: bold; cursor: pointer; color: #000080; font-size: 11px; }
+    .wl-item:hover .wl-ticker { color: #fff; }
+    .del { background: none; border: none; cursor: pointer; font-size: 11px; color: #808080; padding: 0 2px; }
+    .del:hover { color: red; }
+    .wl-empty { padding: 4px; color: #808080; font-size: 11px; }
+    .scan-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .scan-table th { background: #000080; color: #fff; padding: 2px 6px; text-align: left; border-right: 1px solid #000060; cursor: pointer; white-space: nowrap; }
+    .scan-table td { padding: 2px 6px; border-bottom: 1px solid #e0e0e0; background: #fff; white-space: nowrap; }
+    .scan-table tr:hover td { background: #000080; color: #fff; }
+    .today-badge { background: #ff0000; color: #fff; font-size: 9px; padding: 0 3px; margin-left: 4px; font-weight: bold; }
+    .action-btn { background: #c0c0c0; border: 1px solid; border-color: #fff #808080 #808080 #fff; padding: 1px 5px; font-size: 10px; font-family: 'MS Sans Serif', Arial, sans-serif; cursor: pointer; margin-right: 2px; color: #000; }
+    .action-btn:active { border-color: #808080 #fff #fff #808080; }
+    .scan-empty { color: #808080; padding: 20px; text-align: center; }
+    .err-msg { color: red; font-size: 11px; min-height: 14px; margin-top: 2px; }
+    .progress-bar-wrap { margin-bottom: 4px; }
+    .p-track { background: #808080; height: 16px; border: 2px solid; border-color: #808080 #fff #fff #808080; position: relative; }
+    .p-fill { background: #000080; height: 100%; transition: width 0.5s; }
+    .p-text { position: absolute; top: 0; left: 0; right: 0; text-align: center; color: #fff; font-size: 10px; line-height: 16px; mix-blend-mode: difference; }
+    .filter-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; }
+    .filter-row input { margin: 0; width: 140px; }
   </style>
 </head>
 <body>
-  <nav>
-    <div class="nav-right"><button class="logout-btn" onclick="logout()">Sign out</button></div>
-  </nav>
+  <div class="window main-window">
+    <div class="titlebar">
+      <span>SwingTrader</span>
+      <div class="titlebar-btns">
+        <div class="tb-btn">_</div>
+        <div class="tb-btn">□</div>
+        <div class="tb-btn" onclick="logout()">✕</div>
+      </div>
+    </div>
 
-  <main>
-    <div class="layout">
+    <div class="win-body">
+      <div class="main-layout">
 
-      <!-- LEFT: Calculator + Watchlist -->
-      <div class="left">
-
-        <!-- Calculator -->
-        <div class="calc">
-          <h2>Position Size</h2>
-          <label>Account Value ($)</label>
-          <input type="number" id="account" placeholder="100000" oninput="saveAccount()" />
-          <label>Ticker</label>
-          <input type="text" id="calc-ticker" placeholder="AAPL" maxlength="6"
-            oninput="this.value=this.value.toUpperCase()"
-            onkeydown="if(event.key==='Enter') startCalc()" />
-          <button class="btn btn-green" style="width:100%;margin-top:4px" onclick="startCalc()">Calculate</button>
-
-          <div class="calc-result" id="calc-result" style="display:none">
-            <div class="position-label">Position Size</div>
-            <div class="position-size" id="pos-size">—</div>
-            <div style="font-size:12px;color:#444;margin-bottom:10px">shares</div>
-            <div class="result-row"><span class="result-key">Ticker</span><span class="result-val" id="res-ticker">—</span></div>
-            <div class="result-row"><span class="result-key">Current price</span><span class="result-val" id="res-price">—</span></div>
-            <div class="result-row"><span class="result-key">Day low</span><span class="result-val" id="res-low">—</span></div>
-            <div class="result-row"><span class="result-key">Risk / share</span><span class="result-val" id="res-risk">—</span></div>
-            <div class="result-row"><span class="result-key">1% of account</span><span class="result-val" id="res-dollar-risk">—</span></div>
-            <div class="refresh-bar">
+        <!-- LEFT -->
+        <div>
+          <!-- Calculator -->
+          <div class="panel">
+            <div class="panel-label">Position Size Calculator</div>
+            <label>Account Value ($)</label>
+            <input type="number" id="account" placeholder="100000" oninput="saveAccount()" />
+            <label>Ticker</label>
+            <input type="text" id="calc-ticker" placeholder="AAPL" maxlength="6"
+              oninput="this.value=this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter') startCalc()" />
+            <div style="display:flex;gap:4px">
+              <button class="win-btn" onclick="startCalc()">Calculate</button>
+              <button class="win-btn" onclick="clearCalc()">Clear</button>
+            </div>
+            <p class="err-msg" id="calc-error"></p>
+            <div class="result-box" id="calc-result" style="display:none">
+              <div style="font-size:10px;color:#808080">POSITION SIZE</div>
+              <div class="result-num" id="pos-size">—</div>
+              <div style="font-size:10px;color:#808080;margin-bottom:4px">shares</div>
+              <div class="result-row"><span>Ticker</span><span id="res-ticker">—</span></div>
+              <div class="result-row"><span>Price</span><span id="res-price">—</span></div>
+              <div class="result-row"><span>Day Low</span><span id="res-low">—</span></div>
+              <div class="result-row"><span>Risk/share</span><span id="res-risk">—</span></div>
+              <div class="result-row"><span>1% risk</span><span id="res-dollar-risk">—</span></div>
               <div class="refresh-track"><div class="refresh-fill" id="refresh-fill" style="width:100%"></div></div>
-              <span class="refresh-label" id="refresh-label">30s</span>
+              <div class="refresh-txt" id="refresh-label">30s</div>
             </div>
           </div>
-          <p class="error-msg" id="calc-error"></p>
+
+          <!-- Watchlist -->
+          <div class="panel">
+            <div class="panel-label">Watchlist</div>
+            <div style="display:flex;gap:4px;margin-bottom:4px">
+              <input type="text" id="new-ticker" placeholder="AAPL" maxlength="6" style="margin:0;flex:1;text-transform:uppercase"
+                onkeydown="if(event.key==='Enter') addTicker()" />
+              <button class="win-btn" onclick="addTicker()">Add</button>
+            </div>
+            <div class="wl-list" id="wl-list">
+              <div class="wl-empty">Loading...</div>
+            </div>
+          </div>
         </div>
 
-        <!-- Watchlist -->
-        <div class="wl">
-          <h2>Watchlist</h2>
-          <div class="wl-add">
-            <input type="text" id="new-ticker" placeholder="AAPL" maxlength="6"
-              onkeydown="if(event.key==='Enter') addTicker()" />
-            <button class="btn btn-green" onclick="addTicker()">+</button>
+        <!-- RIGHT: Scanner -->
+        <div>
+          <!-- Progress bar -->
+          <div id="progress-wrap" style="display:none" class="panel progress-bar-wrap">
+            <div class="panel-label" id="progress-label">Scanner running...</div>
+            <div class="p-track">
+              <div class="p-fill" id="progress-fill" style="width:0%"></div>
+              <div class="p-text" id="progress-count"></div>
+            </div>
+            <div style="font-size:10px;color:#808080;margin-top:2px" id="progress-updated"></div>
           </div>
-          <div class="wl-list" id="wl-list">
-            <div class="wl-empty">Loading...</div>
+
+          <div class="panel">
+            <div class="panel-label">
+              Scanner Results &nbsp;
+              <span class="muted" id="scan-meta"></span>
+            </div>
+            <div class="filter-row">
+              <label style="display:inline;margin:0">Filter:</label>
+              <input type="text" id="filter" placeholder="Ticker..." oninput="renderTable()" />
+              <span class="muted" id="count"></span>
+            </div>
+            <div class="sunken" style="overflow:auto;max-height:420px">
+              <table class="scan-table">
+                <thead>
+                  <tr>
+                    <th onclick="sortBy('ticker')">Ticker</th>
+                    <th onclick="sortBy('setup_date')">Setup Date</th>
+                    <th onclick="sortBy('scanned_at')">Scanned At</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="scan-body">
+                  <tr><td colspan="4" class="scan-empty">Loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
       </div>
-
-      <!-- RIGHT: Scanner -->
-      <div class="scanner">
-
-        <!-- Progress bar (hidden when idle) -->
-        <div class="progress-wrap" id="progress-wrap" style="display:none">
-          <div class="progress-top">
-            <span class="progress-label" id="progress-label">Scanner running...</span>
-            <span class="progress-count" id="progress-count"></span>
-          </div>
-          <div class="progress-track">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <p class="progress-updated" id="progress-updated"></p>
-        </div>
-
-        <div class="scan-header">
-          <span class="scan-meta" id="scan-meta">Loading...</span>
-          <div style="display:flex;gap:10px;align-items:center">
-            <input class="filter-input" type="text" placeholder="Filter ticker..." id="filter" oninput="renderTable()" />
-            <span style="font-size:12px;color:#333" id="count"></span>
-          </div>
-        </div>
-
-        <div class="scan-card">
-          <table>
-            <thead>
-              <tr>
-                <th onclick="sortBy('ticker')">Ticker</th>
-                <th onclick="sortBy('setup_date')">Setup Date</th>
-                <th onclick="sortBy('scanned_at')">Scanned</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="scan-body">
-              <tr><td colspan="4" class="empty">Loading scanner results...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
     </div>
-  </main>
 
-  <div class="toast" id="toast"></div>
+    <div class="statusbar">
+      <div class="status-panel" id="status-main">Ready</div>
+      <div class="status-panel">NASDAQ + NYSE</div>
+      <div class="status-panel" id="status-time"></div>
+    </div>
+  </div>
+
+  <div class="taskbar">
+    <button class="win-btn" style="font-weight:bold">▶ Start</button>
+    <button class="win-btn">📈 SwingTrader</button>
+    <div style="margin-left:auto;border:2px solid;border-color:#808080 #fff #fff #808080;padding:2px 8px;font-size:11px;background:#c0c0c0" id="clock"></div>
+  </div>
 
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
     async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
 
-    // ── Account persistence ──
+    // Clock
+    function tick() {
+      const now = new Date()
+      document.getElementById('clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      document.getElementById('status-time').textContent = now.toLocaleDateString()
+    }
+    tick(); setInterval(tick, 1000)
+
+    // Account
     const accountInput = document.getElementById('account')
     accountInput.value = localStorage.getItem('st_account') || ''
     function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
@@ -191,6 +178,14 @@
     let calcTimer = null
     let countdown = 30
     let countdownTimer = null
+
+    function clearCalc() {
+      document.getElementById('calc-ticker').value = ''
+      document.getElementById('calc-result').style.display = 'none'
+      document.getElementById('calc-error').textContent = ''
+      clearInterval(calcTimer)
+      clearInterval(countdownTimer)
+    }
 
     function startCalc(ticker) {
       const t = ticker || document.getElementById('calc-ticker').value.trim().toUpperCase()
@@ -207,24 +202,24 @@
       const account = parseFloat(document.getElementById('account').value)
       const errEl = document.getElementById('calc-error')
       errEl.textContent = ''
-
-      if (!account) { errEl.textContent = 'Enter your account value first'; return }
-
+      if (!account) { errEl.textContent = 'Enter account value first'; return }
       errEl.textContent = 'Fetching...'
-      const res = await fetch(`/api/stocks/${calcTicker}`)
+      document.getElementById('status-main').textContent = `Fetching ${calcTicker}...`
 
+      const res = await fetch(`/api/stocks/${calcTicker}`)
       if (!res.ok) {
         const d = await res.json().catch(() => ({}))
-        errEl.textContent = d.error || `Ticker not found: ${calcTicker}`
+        errEl.textContent = d.error || `Not found: ${calcTicker}`
         document.getElementById('calc-result').style.display = 'none'
+        document.getElementById('status-main').textContent = 'Error'
         return
       }
 
       const s = await res.json()
       errEl.textContent = ''
+      document.getElementById('status-main').textContent = 'Ready'
 
-      const price = s.price
-      const low = s.low
+      const price = s.price, low = s.low
       const riskPerShare = price - low
       const dollarRisk = account * 0.01
       const positionSize = riskPerShare > 0 ? Math.floor(dollarRisk / riskPerShare) : 0
@@ -242,7 +237,7 @@
       countdownTimer = setInterval(() => {
         countdown--
         document.getElementById('refresh-fill').style.width = (countdown / 30 * 100) + '%'
-        document.getElementById('refresh-label').textContent = countdown + 's'
+        document.getElementById('refresh-label').textContent = 'Refresh in ' + countdown + 's'
         if (countdown <= 0) clearInterval(countdownTimer)
       }, 1000)
     }
@@ -252,11 +247,11 @@
 
     function renderList() {
       const el = document.getElementById('wl-list')
-      if (!watchlist.length) { el.innerHTML = '<div class="wl-empty">No tickers yet.</div>'; return }
+      if (!watchlist.length) { el.innerHTML = '<div class="wl-empty">No tickers.</div>'; return }
       el.innerHTML = watchlist.map(item => `
         <div class="wl-item">
-          <span class="wl-ticker" onclick="startCalc('${item.ticker}')" title="Load in calculator">${item.ticker}</span>
-          <button class="del" onclick="removeTicker('${item.id}')">×</button>
+          <span class="wl-ticker" onclick="startCalc('${item.ticker}')">${item.ticker}</span>
+          <button class="del" onclick="removeTicker('${item.id}')">✕</button>
         </div>
       `).join('')
     }
@@ -272,14 +267,10 @@
       const ticker = document.getElementById('new-ticker').value.trim().toUpperCase()
       if (!ticker) return
       const r = await fetch('/api/watchlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker })
       })
-      if (r.ok) {
-        document.getElementById('new-ticker').value = ''
-        loadWatchlist()
-      }
+      if (r.ok) { document.getElementById('new-ticker').value = ''; loadWatchlist() }
     }
 
     async function removeTicker(id) {
@@ -289,14 +280,10 @@
     }
 
     // ── Scanner ──
-    let results = []
-    let sortCol = 'setup_date'
-    let sortDir = -1
+    let results = [], sortCol = 'setup_date', sortDir = -1
 
     function sortBy(col) {
       sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = -1)
-      document.querySelectorAll('th').forEach(t => t.classList.remove('sorted'))
-      event.target.classList.add('sorted')
       renderTable()
     }
 
@@ -304,26 +291,21 @@
       const filter = document.getElementById('filter').value.trim().toUpperCase()
       const today = new Date().toISOString().slice(0, 10)
       let rows = results.filter(r => !filter || r.ticker.includes(filter))
-      rows.sort((a, b) => {
-        const av = a[sortCol] || '', bv = b[sortCol] || ''
-        return av < bv ? -sortDir : av > bv ? sortDir : 0
-      })
-      document.getElementById('count').textContent = `${rows.length} result${rows.length !== 1 ? 's' : ''}`
+      rows.sort((a, b) => { const av = a[sortCol]||'', bv = b[sortCol]||''; return av < bv ? -sortDir : av > bv ? sortDir : 0 })
+      document.getElementById('count').textContent = rows.length + ' result' + (rows.length !== 1 ? 's' : '')
       if (!rows.length) {
-        document.getElementById('scan-body').innerHTML =
-          '<tr><td colspan="4" class="empty">No results yet. Scanner runs at 9:45 AM ET on weekdays.</td></tr>'
+        document.getElementById('scan-body').innerHTML = '<tr><td colspan="4" class="scan-empty">No results. Scanner runs at 9:45 AM ET weekdays.</td></tr>'
         return
       }
       document.getElementById('scan-body').innerHTML = rows.map(r => {
         const isToday = r.setup_date === today
-        const scanned = new Date(r.scanned_at).toLocaleString()
         return `<tr>
-          <td class="ticker-cell">${r.ticker}${isToday ? '<span class="today-badge">today</span>' : ''}</td>
-          <td class="date-cell">${r.setup_date}</td>
-          <td class="date-cell">${scanned}</td>
+          <td><b>${r.ticker}</b>${isToday ? '<span class="today-badge">NEW</span>' : ''}</td>
+          <td>${r.setup_date}</td>
+          <td>${new Date(r.scanned_at).toLocaleString()}</td>
           <td>
-            <button class="action-btn" onclick="addToWatchlist('${r.ticker}')">+ Watch</button>
-            <button class="action-btn calc-btn-sm" onclick="startCalc('${r.ticker}')">Calc</button>
+            <button class="action-btn" onclick="addToWatchlist('${r.ticker}')">+Watch</button>
+            <button class="action-btn" onclick="startCalc('${r.ticker}')">Calc</button>
           </td>
         </tr>`
       }).join('')
@@ -331,25 +313,19 @@
 
     async function addToWatchlist(ticker) {
       const r = await fetch('/api/watchlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker })
       })
-      const data = await r.json()
-      showToast(r.ok ? `${ticker} added` : (data.error || 'Already in watchlist'))
-      if (r.ok) loadWatchlist()
+      if (r.ok) { loadWatchlist(); document.getElementById('status-main').textContent = ticker + ' added to watchlist' }
     }
 
     async function loadScanner() {
       const r = await fetch('/api/scanner')
       if (!r.ok) return
       results = await r.json()
-      if (results.length > 0) {
-        document.getElementById('scan-meta').textContent =
-          'Last scan: ' + new Date(results[0].scanned_at).toLocaleString()
-      } else {
-        document.getElementById('scan-meta').textContent = 'No scans run yet'
-      }
+      document.getElementById('scan-meta').textContent = results.length > 0
+        ? 'Last scan: ' + new Date(results[0].scanned_at).toLocaleString()
+        : 'No scans yet'
       renderTable()
     }
 
@@ -358,26 +334,18 @@
       if (!r.ok) return
       const p = await r.json()
       const wrap = document.getElementById('progress-wrap')
-      const isActive = p.status !== 'idle'
-      wrap.style.display = isActive ? 'block' : 'none'
-      if (isActive) {
-        const pct = p.tickers_total > 0 ? Math.round((p.tickers_done / p.tickers_total) * 100) : 0
+      const active = p.status !== 'idle'
+      wrap.style.display = active ? 'block' : 'none'
+      if (active) {
+        const pct = p.tickers_total > 0 ? Math.round(p.tickers_done / p.tickers_total * 100) : 0
         const labels = { running: 'Starting scanner...', downloading: 'Downloading market data...', scanning: 'Scanning for setups...', saving: 'Saving results...' }
         document.getElementById('progress-label').textContent = labels[p.status] || p.status
-        document.getElementById('progress-count').textContent = p.tickers_total > 0 ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)` : ''
         document.getElementById('progress-fill').style.width = pct + '%'
+        document.getElementById('progress-count').textContent = p.tickers_total > 0 ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)` : ''
         document.getElementById('progress-updated').textContent = p.updated_at ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString() : ''
       }
     }
 
-    function showToast(msg) {
-      const t = document.getElementById('toast')
-      t.textContent = msg
-      t.classList.add('show')
-      setTimeout(() => t.classList.remove('show'), 2500)
-    }
-
-    // ── Init ──
     loadWatchlist()
     loadScanner()
     loadProgress()
