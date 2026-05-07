@@ -3,26 +3,40 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login</title>
+  <title>SwingTrader - Login</title>
+  <link rel="stylesheet" href="/shared.css" />
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #0a0a0a; min-height: 100vh; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .wrap { width: 280px; display: flex; flex-direction: column; gap: 10px; }
-    input { width: 100%; background: #141414; border: 1px solid #222; border-radius: 8px; padding: 11px 14px; color: #e5e5e5; font-size: 14px; outline: none; }
-    input:focus { border-color: #00c97a; }
-    input::placeholder { color: #333; }
-    button { width: 100%; padding: 11px; border-radius: 8px; background: #00c97a; color: #000; font-size: 14px; font-weight: 600; border: none; cursor: pointer; }
-    button:hover { opacity: 0.85; }
-    button:disabled { opacity: 0.4; cursor: not-allowed; }
-    .error { font-size: 12px; color: #ff5555; text-align: center; min-height: 16px; }
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .login-wrap { width: 280px; }
+    .field { margin-bottom: 8px; }
+    .err { color: red; font-size: 11px; margin-top: 4px; min-height: 14px; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <input id="username" type="text" placeholder="Username" autocomplete="username" />
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
-    <button id="btn" onclick="login()">Sign in</button>
-    <p class="error" id="error"></p>
+  <div class="login-wrap">
+    <div class="window">
+      <div class="titlebar">
+        <span>SwingTrader Login</span>
+        <div class="titlebar-btns"><div class="tb-btn">✕</div></div>
+      </div>
+      <div class="win-body">
+        <div class="panel">
+          <div class="field">
+            <label>Username:</label>
+            <input type="text" id="username" autocomplete="username" />
+          </div>
+          <div class="field">
+            <label>Password:</label>
+            <input type="password" id="password" autocomplete="current-password" />
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:4px;margin-top:6px">
+            <button class="win-btn" id="btn" onclick="login()">OK</button>
+            <button class="win-btn" onclick="document.getElementById('username').value='';document.getElementById('password').value=''">Cancel</button>
+          </div>
+          <p class="err" id="error"></p>
+        </div>
+      </div>
+    </div>
   </div>
   <script>
     fetch('/api/me').then(r => { if (r.ok) window.location.href = '/dashboard' })
@@ -37,7 +51,7 @@
       const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
       const data = await res.json()
       if (data.ok) { window.location.href = '/dashboard' }
-      else { document.getElementById('error').textContent = 'Invalid credentials'; btn.disabled = false; btn.textContent = 'Sign in'; document.getElementById('password').value = '' }
+      else { document.getElementById('error').textContent = 'Invalid username or password'; btn.disabled = false; btn.textContent = 'OK'; document.getElementById('password').value = '' }
     }
   </script>
 </body>
