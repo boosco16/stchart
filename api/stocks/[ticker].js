@@ -1,5 +1,7 @@
 import { isAuthenticated } from '../_lib/session.js'
 
+const AV_KEY = process.env.ALPHAVANTAGE_KEY
+
 export default async function handler(req, res) {
   if (!await isAuthenticated(req)) return res.status(401).json({ error: 'Unauthorized' })
 
@@ -7,65 +9,45 @@ export default async function handler(req, res) {
   if (!ticker) return res.status(400).json({ error: 'No ticker' })
 
   try {
-    // Try query1 first, fall back to query2
-    let data = null
-    for (const host of ['query1', 'query2']) {
-      try {
-        const url = `https://${host}.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=5d`
-        const r = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://finance.yahoo.com/',
-            'Origin': 'https://finance.yahoo.com',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-site',
-          }
-        })
-        if (r.ok) {
-          const json = await r.json()
-          if (json?.chart?.result?.[0]) {
-            data = json
-            break
-          }
-        }
-      } catch {}
+    const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${AV_KEY}`
+    const r = await fetch(url)
+    const data = await r.json()
+
+    const q = data['Global Quote']
+    if (!q || !q['05. price']) {
+      return res.status(404).json({ error: `Ticker not found: ${ticker}` })
     }
 
-    if (!data) return res.status(404).json({ error: 'Ticker not found' })
+    const price = parseFloat(q['05. price'])
+    const open = parseFloat(q['02. open'])
+    const high = parseFloat(q['03. high'])
+    const low = parseFloat(q['04. low'])
+    const prevClose = parseFloat(q['08. previous close'])
+    const volume = parseInt(q['06. volume'])
+    const change = parseFloat(q['09. change'])
+    const changePct = parseFloat(q['10. change percent'].replace('%', ''))
 
-    const result = data.chart.result[0]
-    const meta = result.meta
-    const quotes = result.indicators?.quote?.[0]
-    const closes = result.indicators?.adjclose?.[0]?.adjclose ?? []
+    // Fetch 20 day average volume for buzz
+    const dailyUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${ticker}&outputsize=compact&apikey=${AV_KEY}`
+    const dailyR = await fetch(dailyUrl)
+    const dailyData = await dailyR.json()
+    const series = dailyData['Time Series (Daily)']
 
-    // Get today's and yesterday's data
-    const timestamps = result.timestamp ?? []
-    const lastIdx = timestamps.length - 1
-    const prevIdx = lastIdx - 1
+    let volumeBuzz = 1
+    if (series) {
+      const days = Object.values(series).slice(0, 20)
+      const avgVol = days.reduce((sum, d) => sum + parseInt(d['5. volume']), 0) / days.length
+      volumeBuzz = avgVol ? parseFloat((volume / avgVol).toFixed(2)) : 1
+    }
 
-    const price = meta.regularMarketPrice ?? quotes?.close?.[lastIdx] ?? 0
-    const prevClose = meta.chartPreviousClose ?? quotes?.close?.[prevIdx] ?? 0
-    const high = quotes?.high?.[lastIdx] ?? meta.regularMarketDayHigh ?? 0
-    const low = quotes?.low?.[lastIdx] ?? meta.regularMarketDayLow ?? 0
-    const open = quotes?.open?.[lastIdx] ?? 0
-    const volume = quotes?.volume?.[lastIdx] ?? meta.regularMarketVolume ?? 0
-    const avgVolume = meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 1
-    const change = price - prevClose
-    const changePct = prevClose ? (change / prevClose) * 100 : 0
-    const volumeBuzz = avgVolume ? parseFloat((volume / avgVolume).toFixed(2)) : 1
-
-    res.setHeader('Cache-Control', 's-maxage=30')
+    res.setHeader('Cache-Control', 's-maxage=60')
     res.json({
       ticker,
-      name: meta.longName || meta.shortName || ticker,
+      name: ticker,
       price,
+      open,
       high,
       low,
-      open,
       volume,
       prevClose,
       change,
