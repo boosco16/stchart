@@ -74,13 +74,11 @@
           <div class="position-label">Position Size</div>
           <div class="position-size" id="pos-size">—</div>
           <div style="font-size:12px;color:#444;margin-bottom:12px">shares</div>
-
           <div class="result-row"><span class="result-key">Ticker</span><span class="result-val" id="res-ticker">—</span></div>
           <div class="result-row"><span class="result-key">Current price</span><span class="result-val" id="res-price">—</span></div>
           <div class="result-row"><span class="result-key">Day low</span><span class="result-val" id="res-low">—</span></div>
           <div class="result-row"><span class="result-key">Risk / share</span><span class="result-val" id="res-risk">—</span></div>
           <div class="result-row"><span class="result-key">1% of account</span><span class="result-val" id="res-dollar-risk">—</span></div>
-
           <div class="refresh-bar">
             <div class="refresh-track"><div class="refresh-fill" id="refresh-fill" style="width:100%"></div></div>
             <span class="refresh-label" id="refresh-label">30s</span>
@@ -131,6 +129,38 @@
     accountInput.value = localStorage.getItem('st_account') || ''
     function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
 
+    // ── Fetch stock data directly from Yahoo (browser-side, no server needed) ──
+    async function fetchYahoo(ticker) {
+      try {
+        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
+        const r = await fetch(url)
+        if (!r.ok) return null
+        const data = await r.json()
+        const result = data?.chart?.result?.[0]
+        if (!result) return null
+        const meta = result.meta
+        const quote = result.indicators?.quote?.[0]
+        const price = meta.regularMarketPrice ?? 0
+        const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0
+        const open = quote?.open?.[0] ?? 0
+        const high = quote?.high?.[0] ?? 0
+        const low = quote?.low?.[0] ?? 0
+        const volume = quote?.volume?.[0] ?? 0
+        const avgVolume = meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 1
+        const change = price - prevClose
+        const changePct = prevClose ? (change / prevClose) * 100 : 0
+        const volumeBuzz = parseFloat((volume / avgVolume).toFixed(2))
+        return {
+          ticker,
+          name: meta.longName || meta.shortName || ticker,
+          price, open, high, low, volume,
+          prevClose, change, changePct, volumeBuzz
+        }
+      } catch {
+        return null
+      }
+    }
+
     // ── Calculator ──
     let calcTicker = ''
     let calcTimer = null
@@ -156,12 +186,11 @@
         return
       }
 
-      const res = await fetch(`/api/stocks/${calcTicker}`)
-      if (!res.ok) {
+      const s = await fetchYahoo(calcTicker)
+      if (!s) {
         document.getElementById('calc-error').textContent = `Could not find ticker: ${calcTicker}`
         return
       }
-      const s = await res.json()
 
       const price = s.price
       const low = s.low
@@ -197,7 +226,10 @@
 
     function renderTable() {
       const tbody = document.getElementById('wl-body')
-      if (!watchlist.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No tickers yet.</td></tr>'; return }
+      if (!watchlist.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty">No tickers yet.</td></tr>'
+        return
+      }
       tbody.innerHTML = watchlist.map(item => {
         const s = stockCache[item.ticker]
         return `<tr>
@@ -219,8 +251,8 @@
       watchlist = await r.json()
       renderTable()
       await Promise.allSettled(watchlist.map(async item => {
-        const r = await fetch(`/api/stocks/${item.ticker}`)
-        if (r.ok) stockCache[item.ticker] = await r.json()
+        const s = await fetchYahoo(item.ticker)
+        if (s) stockCache[item.ticker] = s
       }))
       renderTable()
       document.getElementById('wl-updated').textContent = 'Updated ' + new Date().toLocaleTimeString()
@@ -230,7 +262,8 @@
       const ticker = document.getElementById('new-ticker').value.trim().toUpperCase()
       if (!ticker) return
       const r = await fetch('/api/watchlist', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ticker })
       })
       if (r.ok) {
