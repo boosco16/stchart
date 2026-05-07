@@ -1,0 +1,30 @@
+name: Stock Scanner
+
+on:
+  schedule:
+    - cron: '45 13 * * 1-5'   # 9:45 AM ET (market open)
+    - cron: '0 18 * * 1-5'    # 2:00 PM ET (mid-session)
+  workflow_dispatch:            # lets you also trigger it manually from GitHub
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r scanner/requirements.txt
+
+      - name: Run scanner
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scanner/qullamaggie.py
