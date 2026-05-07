@@ -9,7 +9,6 @@
     .layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
     @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
 
-    /* Calculator */
     .calc { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; padding: 20px; position: sticky; top: 72px; }
     .calc h2 { font-size: 13px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
     .calc input[type="text"], .calc input[type="number"] { width: 100%; margin-bottom: 10px; }
@@ -25,11 +24,8 @@
     .refresh-fill { height: 2px; background: #00c97a; border-radius: 1px; transition: width 1s linear; }
     .refresh-label { font-size: 11px; color: #333; white-space: nowrap; }
     .error-msg { font-size: 12px; color: #ff5555; margin-top: 8px; }
-    .calc-ticker { font-size: 13px; font-weight: 600; color: #fff; text-transform: uppercase; }
 
-    /* Watchlist */
-    .wl-top { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-    .wl-top input { width: 100px; }
+    .wl-top { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
     .wl-top input.ticker-input { width: 80px; text-transform: uppercase; font-weight: 600; }
     .wl-card { background: #111; border: 1px solid #1e1e1e; border-radius: 12px; overflow: hidden; }
     table { width: 100%; border-collapse: collapse; }
@@ -79,7 +75,7 @@
           <div class="position-size" id="pos-size">—</div>
           <div style="font-size:12px;color:#444;margin-bottom:12px">shares</div>
 
-          <div class="result-row"><span class="result-key">Ticker</span><span class="result-val calc-ticker" id="res-ticker">—</span></div>
+          <div class="result-row"><span class="result-key">Ticker</span><span class="result-val" id="res-ticker">—</span></div>
           <div class="result-row"><span class="result-key">Current price</span><span class="result-val" id="res-price">—</span></div>
           <div class="result-row"><span class="result-key">Day low</span><span class="result-val" id="res-low">—</span></div>
           <div class="result-row"><span class="result-key">Risk / share</span><span class="result-val" id="res-risk">—</span></div>
@@ -101,14 +97,6 @@
             <input class="ticker-input" id="new-ticker" type="text" placeholder="AAPL" maxlength="6"
               onkeydown="if(event.key==='Enter') addTicker()" />
           </div>
-          <div>
-            <label>Avg Cost</label>
-            <input id="new-cost" type="number" step="0.01" placeholder="optional" />
-          </div>
-          <div>
-            <label>Shares</label>
-            <input id="new-shares" type="number" step="1" placeholder="optional" />
-          </div>
           <button class="btn btn-green" onclick="addTicker()">+ Add</button>
         </div>
 
@@ -120,9 +108,9 @@
                 <th>Price</th>
                 <th>Change</th>
                 <th>Vol Buzz</th>
-                <th>VWAP</th>
-                <th>Avg Cost</th>
-                <th>P&L</th>
+                <th>High</th>
+                <th>Low</th>
+                <th>Volume</th>
                 <th></th>
               </tr>
             </thead>
@@ -139,7 +127,6 @@
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
     async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
 
-    // ── Account value persistence ──
     const accountInput = document.getElementById('account')
     accountInput.value = localStorage.getItem('st_account') || ''
     function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
@@ -190,7 +177,6 @@
       document.getElementById('res-risk').textContent = riskPerShare > 0 ? '$' + riskPerShare.toFixed(2) : 'N/A (price = low)'
       document.getElementById('res-dollar-risk').textContent = '$' + dollarRisk.toFixed(2)
 
-      // Countdown bar
       countdown = 30
       clearInterval(countdownTimer)
       countdownTimer = setInterval(() => {
@@ -209,14 +195,6 @@
     function buzzClass(b) { return b >= 3 ? 'buzz buzz-hot' : b >= 1.5 ? 'buzz buzz-mid' : 'buzz buzz-low' }
     function fmt(n, d=2) { return (n ?? 0).toFixed(d) }
 
-    function renderPnl(item, s) {
-      if (!item.avg_cost || !item.shares || !s) return '<span class="muted">—</span>'
-      const pnl = (s.price - item.avg_cost) * item.shares
-      const pct = (s.price - item.avg_cost) / item.avg_cost * 100
-      return `<span class="${pnl >= 0 ? 'green' : 'red'} num">${pnl >= 0 ? '+' : '-'}$${fmt(Math.abs(pnl))}</span>
-              <span class="muted" style="font-size:11px"> ${pct >= 0 ? '+' : ''}${fmt(pct)}%</span>`
-    }
-
     function renderTable() {
       const tbody = document.getElementById('wl-body')
       if (!watchlist.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty">No tickers yet.</td></tr>'; return }
@@ -227,9 +205,9 @@
           <td class="num">${s ? '$' + fmt(s.price) : '<span class="muted">—</span>'}</td>
           <td>${s ? `<span class="${s.changePct >= 0 ? 'green' : 'red'} num">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>` : '—'}</td>
           <td>${s ? `<span class="${buzzClass(s.volumeBuzz)}">${fmt(s.volumeBuzz, 1)}x</span>` : '—'}</td>
-          <td class="num muted">${s?.vwap ? '$' + fmt(s.vwap) : '—'}</td>
-          <td class="muted">${item.avg_cost ? '$' + fmt(item.avg_cost) : '—'}</td>
-          <td>${renderPnl(item, s)}</td>
+          <td class="num muted">${s?.high ? '$' + fmt(s.high) : '—'}</td>
+          <td class="num muted">${s?.low ? '$' + fmt(s.low) : '—'}</td>
+          <td class="num muted">${s?.volume ? s.volume.toLocaleString() : '—'}</td>
           <td><button class="del" onclick="remove('${item.id}')">×</button></td>
         </tr>`
       }).join('')
@@ -251,16 +229,12 @@
     async function addTicker() {
       const ticker = document.getElementById('new-ticker').value.trim().toUpperCase()
       if (!ticker) return
-      const avg_cost = parseFloat(document.getElementById('new-cost').value) || null
-      const shares = parseFloat(document.getElementById('new-shares').value) || 0
       const r = await fetch('/api/watchlist', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker, avg_cost, shares })
+        body: JSON.stringify({ ticker })
       })
       if (r.ok) {
         document.getElementById('new-ticker').value = ''
-        document.getElementById('new-cost').value = ''
-        document.getElementById('new-shares').value = ''
         loadWatchlist()
       }
     }
