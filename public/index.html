@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwingTrader — Login</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e5e5e5; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 360px; }
+    .logo { font-size: 36px; text-align: center; margin-bottom: 12px; }
+    h1 { font-size: 20px; font-weight: 600; color: #fff; text-align: center; letter-spacing: -0.4px; }
+    .sub { font-size: 13px; color: #444; text-align: center; margin-top: 5px; margin-bottom: 32px; }
+    label { font-size: 11px; color: #444; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 6px; }
+    input { width: 100%; background: #161616; border: 1px solid #222; border-radius: 8px; padding: 11px 14px; color: #e5e5e5; font-size: 14px; outline: none; transition: border-color 0.15s; margin-bottom: 14px; }
+    input:focus { border-color: #00c97a; }
+    input::placeholder { color: #333; }
+    button { width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; background: #00c97a; color: #000; transition: opacity 0.15s; margin-top: 4px; }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .error { font-size: 13px; color: #ff5555; text-align: center; margin-top: 16px; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">📈</div>
+    <h1>SwingTrader</h1>
+    <p class="sub">Personal trading dashboard</p>
+    <label for="username">Username</label>
+    <input id="username" type="text" placeholder="username" autocomplete="username" />
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+    <button id="btn" onclick="login()">Sign in</button>
+    <p class="error" id="error"></p>
+  </div>
+  <script>
+    fetch('/api/me').then(r => { if (r.ok) window.location.href = '/dashboard' })
+    document.getElementById('username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('password').focus() })
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') login() })
+    async function login() {
+      const btn = document.getElementById('btn')
+      const errEl = document.getElementById('error')
+      const username = document.getElementById('username').value.trim()
+      const password = document.getElementById('password').value
+      if (!username || !password) { errEl.textContent = 'Please enter username and password'; return }
+      btn.disabled = true; btn.textContent = 'Signing in...'; errEl.textContent = ''
+      try {
+        const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
+        const data = await res.json()
+        if (data.ok) { window.location.href = '/dashboard' } 
+        else { errEl.textContent = 'Invalid username or password'; btn.disabled = false; btn.textContent = 'Sign in'; document.getElementById('password').value = ''; document.getElementById('password').focus() }
+      } catch { errEl.textContent = 'Something went wrong'; btn.disabled = false; btn.textContent = 'Sign in' }
+    }
+  </script>
+</body>
+</html>
