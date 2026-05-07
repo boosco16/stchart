@@ -23,7 +23,7 @@
     .refresh-track { flex: 1; height: 2px; background: #1a1a1a; border-radius: 1px; }
     .refresh-fill { height: 2px; background: #00c97a; border-radius: 1px; transition: width 1s linear; }
     .refresh-label { font-size: 11px; color: #333; white-space: nowrap; }
-    .error-msg { font-size: 12px; color: #ff5555; margin-top: 8px; }
+    .error-msg { font-size: 12px; color: #ff5555; margin-top: 8px; min-height: 16px; }
 
     .wl-top { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
     .wl-top input.ticker-input { width: 80px; text-transform: uppercase; font-weight: 600; }
@@ -34,7 +34,6 @@
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: #131313; }
     .ticker-name { font-size: 14px; font-weight: 600; color: #fff; }
-    .co-name { font-size: 11px; color: #333; margin-top: 1px; }
     .buzz { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
     .buzz-hot { background: #2d1200; color: #f5a623; }
     .buzz-mid { background: #1e1a00; color: #d4a800; }
@@ -112,7 +111,9 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody id="wl-body"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody>
+            <tbody id="wl-body">
+              <tr><td colspan="8" class="empty">Loading...</td></tr>
+            </tbody>
           </table>
         </div>
         <p style="font-size:11px;color:#2a2a2a;text-align:right;margin-top:8px" id="wl-updated"></p>
@@ -128,38 +129,6 @@
     const accountInput = document.getElementById('account')
     accountInput.value = localStorage.getItem('st_account') || ''
     function saveAccount() { localStorage.setItem('st_account', accountInput.value) }
-
-    // ── Fetch stock data directly from Yahoo (browser-side, no server needed) ──
-    async function fetchYahoo(ticker) {
-      try {
-        const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`
-        const r = await fetch(url)
-        if (!r.ok) return null
-        const data = await r.json()
-        const result = data?.chart?.result?.[0]
-        if (!result) return null
-        const meta = result.meta
-        const quote = result.indicators?.quote?.[0]
-        const price = meta.regularMarketPrice ?? 0
-        const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? 0
-        const open = quote?.open?.[0] ?? 0
-        const high = quote?.high?.[0] ?? 0
-        const low = quote?.low?.[0] ?? 0
-        const volume = quote?.volume?.[0] ?? 0
-        const avgVolume = meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 1
-        const change = price - prevClose
-        const changePct = prevClose ? (change / prevClose) * 100 : 0
-        const volumeBuzz = parseFloat((volume / avgVolume).toFixed(2))
-        return {
-          ticker,
-          name: meta.longName || meta.shortName || ticker,
-          price, open, high, low, volume,
-          prevClose, change, changePct, volumeBuzz
-        }
-      } catch {
-        return null
-      }
-    }
 
     // ── Calculator ──
     let calcTicker = ''
@@ -179,20 +148,25 @@
 
     async function fetchCalc() {
       const account = parseFloat(document.getElementById('account').value)
-      document.getElementById('calc-error').textContent = ''
+      const errEl = document.getElementById('calc-error')
+      errEl.textContent = ''
 
       if (!account) {
-        document.getElementById('calc-error').textContent = 'Enter your account value first'
+        errEl.textContent = 'Enter your account value first'
         return
       }
 
-   const res = await fetch(`/api/stocks/${calcTicker}`)
-if (!res.ok) { ... }
-const s = await res.json()
-      if (!s) {
-        document.getElementById('calc-error').textContent = `Could not find ticker: ${calcTicker}`
+      errEl.textContent = 'Fetching...'
+      const res = await fetch(`/api/stocks/${calcTicker}`)
+
+      if (!res.ok) {
+        errEl.textContent = `Ticker not found: ${calcTicker}`
+        document.getElementById('calc-result').style.display = 'none'
         return
       }
+
+      const s = await res.json()
+      errEl.textContent = ''
 
       const price = s.price
       const low = s.low
@@ -206,82 +180,3 @@ const s = await res.json()
       document.getElementById('res-price').textContent = '$' + price.toFixed(2)
       document.getElementById('res-low').textContent = '$' + low.toFixed(2)
       document.getElementById('res-risk').textContent = riskPerShare > 0 ? '$' + riskPerShare.toFixed(2) : 'N/A (price = low)'
-      document.getElementById('res-dollar-risk').textContent = '$' + dollarRisk.toFixed(2)
-
-      countdown = 30
-      clearInterval(countdownTimer)
-      countdownTimer = setInterval(() => {
-        countdown--
-        const pct = (countdown / 30) * 100
-        document.getElementById('refresh-fill').style.width = pct + '%'
-        document.getElementById('refresh-label').textContent = countdown + 's'
-        if (countdown <= 0) clearInterval(countdownTimer)
-      }, 1000)
-    }
-
-    // ── Watchlist ──
-    const stockCache = {}
-    let watchlist = []
-
-    function buzzClass(b) { return b >= 3 ? 'buzz buzz-hot' : b >= 1.5 ? 'buzz buzz-mid' : 'buzz buzz-low' }
-    function fmt(n, d=2) { return (n ?? 0).toFixed(d) }
-
-    function renderTable() {
-      const tbody = document.getElementById('wl-body')
-      if (!watchlist.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty">No tickers yet.</td></tr>'
-        return
-      }
-      tbody.innerHTML = watchlist.map(item => {
-        const s = stockCache[item.ticker]
-        return `<tr>
-          <td><div class="ticker-name">${item.ticker}</div><div class="co-name">${s?.name || ''}</div></td>
-          <td class="num">${s ? '$' + fmt(s.price) : '<span class="muted">—</span>'}</td>
-          <td>${s ? `<span class="${s.changePct >= 0 ? 'green' : 'red'} num">${s.changePct >= 0 ? '+' : ''}${fmt(s.changePct)}%</span>` : '—'}</td>
-          <td>${s ? `<span class="${buzzClass(s.volumeBuzz)}">${fmt(s.volumeBuzz, 1)}x</span>` : '—'}</td>
-          <td class="num muted">${s?.high ? '$' + fmt(s.high) : '—'}</td>
-          <td class="num muted">${s?.low ? '$' + fmt(s.low) : '—'}</td>
-          <td class="num muted">${s?.volume ? s.volume.toLocaleString() : '—'}</td>
-          <td><button class="del" onclick="remove('${item.id}')">×</button></td>
-        </tr>`
-      }).join('')
-    }
-
-    async function loadWatchlist() {
-      const r = await fetch('/api/watchlist')
-      if (!r.ok) return
-      watchlist = await r.json()
-      renderTable()
-      await Promise.allSettled(watchlist.map(async item => {
-        const r = await fetch(`/api/stocks/${item.ticker}`)
-if (r.ok) stockCache[item.ticker] = await r.json()
-      }))
-      renderTable()
-      document.getElementById('wl-updated').textContent = 'Updated ' + new Date().toLocaleTimeString()
-    }
-
-    async function addTicker() {
-      const ticker = document.getElementById('new-ticker').value.trim().toUpperCase()
-      if (!ticker) return
-      const r = await fetch('/api/watchlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ticker })
-      })
-      if (r.ok) {
-        document.getElementById('new-ticker').value = ''
-        loadWatchlist()
-      }
-    }
-
-    async function remove(id) {
-      await fetch(`/api/watchlist/${id}`, { method: 'DELETE' })
-      watchlist = watchlist.filter(w => w.id !== id)
-      renderTable()
-    }
-
-    loadWatchlist()
-    setInterval(loadWatchlist, 60000)
-  </script>
-</body>
-</html>
