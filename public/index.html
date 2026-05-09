@@ -3,40 +3,27 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>stchart</title>
+  <title>SwingTrader</title>
   <link rel="stylesheet" href="/shared.css" />
   <style>
     body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .login-wrap { width: 280px; }
-    .field { margin-bottom: 8px; }
-    .err { color: red; font-size: 11px; margin-top: 4px; min-height: 14px; }
+    .login-wrap { width: 320px; }
+    h1 { font-size: 32px; font-weight: 100; color: #fff; margin-bottom: 32px; letter-spacing: -0.5px; }
+    .err { font-size: 12px; color: #ff6b6b; margin-top: 12px; min-height: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .btn-row { margin-top: 20px; }
   </style>
 </head>
 <body>
   <div class="login-wrap">
-    <div class="window">
-      <div class="titlebar">
-        <span>stchart</span>
-        <div class="titlebar-btns"><div class="tb-btn">✕</div></div>
-      </div>
-      <div class="win-body">
-        <div class="panel">
-          <div class="field">
-            <label>Username:</label>
-            <input type="text" id="username" autocomplete="username" />
-          </div>
-          <div class="field">
-            <label>Password:</label>
-            <input type="password" id="password" autocomplete="current-password" />
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:4px;margin-top:6px">
-            <button class="win-btn" id="btn" onclick="login()">OK</button>
-            <button class="win-btn" onclick="document.getElementById('username').value='';document.getElementById('password').value=''">Cancel</button>
-          </div>
-          <p class="err" id="error"></p>
-        </div>
-      </div>
+    <h1>SwingTrader</h1>
+    <label>Username</label>
+    <input type="text" id="username" autocomplete="username" />
+    <label>Password</label>
+    <input type="password" id="password" autocomplete="current-password" />
+    <div class="btn-row">
+      <button class="metro-btn-solid" id="btn" onclick="login()">Sign in</button>
     </div>
+    <p class="err" id="error"></p>
   </div>
   <script>
     fetch('/api/me').then(r => { if (r.ok) window.location.href = '/dashboard' })
@@ -51,7 +38,7 @@
       const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
       const data = await res.json()
       if (data.ok) { window.location.href = '/dashboard' }
-      else { document.getElementById('error').textContent = 'Invalid username or password'; btn.disabled = false; btn.textContent = 'OK'; document.getElementById('password').value = '' }
+      else { document.getElementById('error').textContent = 'Invalid credentials'; btn.disabled = false; btn.textContent = 'Sign in'; document.getElementById('password').value = '' }
     }
   </script>
 </body>
