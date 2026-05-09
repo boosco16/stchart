@@ -680,6 +680,10 @@
     }
 
     init()
+    // Auto-redirect to mobile view on small screens
+    if (window.innerWidth <= 768) {
+      window.location.href = '/mobile'
+}
   </script>
 </body>
 </html>
