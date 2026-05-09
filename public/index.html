@@ -7,38 +7,78 @@
   <link rel="stylesheet" href="/shared.css" />
   <style>
     body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-    .login-wrap { width: 320px; }
-    h1 { font-size: 32px; font-weight: 100; color: #fff; margin-bottom: 32px; letter-spacing: -0.5px; }
-    .err { font-size: 12px; color: #ff6b6b; margin-top: 12px; min-height: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .btn-row { margin-top: 20px; }
+    .login-window { width: 340px; }
+    .login-body { padding: 24px; }
+    .login-icon { font-size: 40px; text-align: center; margin-bottom: 4px; }
+    .login-title { font-size: 18px; font-weight: 300; color: #1e4d8c; text-align: center; margin-bottom: 20px; }
+    .divider { border: none; border-top: 1px solid #d0d0d0; margin: 16px 0; }
+    .btn-row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .err { font-size: 11px; color: #cc0000; margin-top: 8px; min-height: 14px; }
+    .win7-footer {
+      background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
+      border-top: 1px solid #c0c0c0;
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: #666;
+      border-radius: 0 0 2px 2px;
+    }
   </style>
 </head>
 <body>
-  <div class="login-wrap">
-    <h1>SwingTrader</h1>
-    <label>Username</label>
-    <input type="text" id="username" autocomplete="username" />
-    <label>Password</label>
-    <input type="password" id="password" autocomplete="current-password" />
-    <div class="btn-row">
-      <button class="metro-btn-solid" id="btn" onclick="login()">Sign in</button>
+  <div class="win7-window login-window">
+    <div class="win7-titlebar">
+      <span class="win7-title">SwingTrader</span>
+      <div class="win7-controls">
+        <div class="win7-ctrl win7-ctrl-min">&#x2212;</div>
+        <div class="win7-ctrl win7-ctrl-max">&#x25A1;</div>
+        <div class="win7-ctrl win7-ctrl-close" onclick="">&#x2715;</div>
+      </div>
     </div>
-    <p class="err" id="error"></p>
+    <div class="win7-body">
+      <div class="login-body">
+        <div class="login-icon">📈</div>
+        <div class="login-title">SwingTrader</div>
+        <label>Username</label>
+        <input type="text" id="username" autocomplete="username" />
+        <label>Password</label>
+        <input type="password" id="password" autocomplete="current-password" />
+        <div class="btn-row">
+          <button class="win7-btn" onclick="document.getElementById('username').value='';document.getElementById('password').value=''">Cancel</button>
+          <button class="win7-btn-primary" id="btn" onclick="login()">Sign in</button>
+        </div>
+        <p class="err" id="error"></p>
+      </div>
+      <div class="win7-footer">
+        <span>SwingTrader v1.0</span>
+        <span id="login-time"></span>
+      </div>
+    </div>
   </div>
   <script>
     fetch('/api/me').then(r => { if (r.ok) window.location.href = '/dashboard' })
     document.getElementById('username').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('password').focus() })
     document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') login() })
+    setInterval(() => {
+      document.getElementById('login-time').textContent = new Date().toLocaleTimeString()
+    }, 1000)
     async function login() {
       const btn = document.getElementById('btn')
       const username = document.getElementById('username').value.trim()
       const password = document.getElementById('password').value
       if (!username || !password) return
-      btn.disabled = true; btn.textContent = '...'
+      btn.disabled = true; btn.textContent = 'Signing in...'
       const res = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) })
       const data = await res.json()
       if (data.ok) { window.location.href = '/dashboard' }
-      else { document.getElementById('error').textContent = 'Invalid credentials'; btn.disabled = false; btn.textContent = 'Sign in'; document.getElementById('password').value = '' }
+      else {
+        document.getElementById('error').textContent = 'The username or password is incorrect.'
+        btn.disabled = false; btn.textContent = 'Sign in'
+        document.getElementById('password').value = ''
+        document.getElementById('password').focus()
+      }
     }
   </script>
 </body>
