@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>SwingTrader</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      min-height: 100vh;
+      overscroll-behavior: none;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: #0f0f0f;
+      border-bottom: 1px solid #222;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .topbar-title { font-size: 17px; font-weight: 600; color: #fff; }
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .scan-status { font-size: 11px; color: #555; }
+    .signout-btn {
+      font-size: 13px; color: #555;
+      background: none; border: none; cursor: pointer;
+      font-family: -apple-system, sans-serif;
+    }
+
+    /* ── Tab bar ── */
+    .tabbar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 100;
+      background: #0f0f0f;
+      border-top: 1px solid #222;
+      display: flex;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 0 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      color: #555;
+      cursor: pointer;
+      transition: color 0.15s;
+      border: none;
+      background: none;
+      font-family: -apple-system, sans-serif;
+    }
+    .tab.active { color: #2d7cf6; }
+    .tab-icon { font-size: 22px; line-height: 1; }
+
+    /* ── Main content area ── */
+    .content {
+      padding-top: 56px;
+      padding-bottom: 72px;
+      min-height: 100vh;
+    }
+
+    /* ── Scanner page ── */
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .scan-header {
+      padding: 12px 16px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .scan-count { font-size: 13px; color: #555; }
+    .filter-input {
+      width: 100%;
+      margin: 0 16px 10px;
+      width: calc(100% - 32px);
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 9px 14px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+    }
+    .filter-input::placeholder { color: #444; }
+
+    .scan-list { }
+    .scan-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #1a1a1a;
+      cursor: pointer;
+      transition: background 0.1s;
+      active: background #1a1a1a;
+    }
+    .scan-item:active { background: #1a1a1a; }
+    .scan-item-left { display: flex; flex-direction: column; gap: 3px; }
+    .scan-ticker { font-size: 17px; font-weight: 600; color: #fff; }
+    .scan-date { font-size: 13px; color: #555; }
+    .new-badge {
+      background: #1a3a6a;
+      color: #4a9eff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .scan-item-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #333;
+      font-size: 20px;
+    }
+    .scan-empty {
+      text-align: center;
+      padding: 60px 24px;
+      color: #333;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ── Progress bar ── */
+    .progress-banner {
+      background: #1a1a1a;
+      border-bottom: 1px solid #222;
+      padding: 10px 16px;
+      display: none;
+    }
+    .progress-banner.visible { display: block; }
+    .progress-banner-label { font-size: 12px; color: #888; margin-bottom: 6px; }
+    .progress-track {
+      background: #2a2a2a;
+      border-radius: 3px;
+      height: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-fill {
+      height: 4px;
+      background: #2d7cf6;
+      border-radius: 3px;
+      transition: width 0.5s ease;
+      min-width: 4px;
+    }
+    .progress-dots {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+    }
+    .progress-dots::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; bottom: 0;
+      width: 40%;
+      background: linear-gradient(90deg, transparent, #2d7cf6, transparent);
+      animation: shimmer 1.5s ease-in-out infinite;
+    }
+    @keyframes shimmer {
+      from { left: -40%; }
+      to { left: 140%; }
+    }
+    .progress-banner-sub {
+      font-size: 11px;
+      color: #555;
+      margin-top: 5px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* ── Watchlist page ── */
+    .wl-add-bar {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .wl-add-bar input {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 9px 14px;
+      color: #fff;
+      font-size: 15px;
+      text-transform: uppercase;
+      outline: none;
+      font-family: -apple-system, sans-serif;
+    }
+    .wl-add-bar input::placeholder { color: #444; text-transform: none; }
+    .add-btn {
+      background: #2d7cf6;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 18px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: -apple-system, sans-serif;
+    }
+    .wl-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid #1a1a1a;
+      cursor: pointer;
+    }
+    .wl-item:active { background: #1a1a1a; }
+    .wl-ticker-name { font-size: 17px; font-weight: 600; color: #fff; }
+    .wl-del {
+      background: none; border: none;
+      color: #333; font-size: 20px;
+      cursor: pointer; padding: 4px 8px;
+      font-family: -apple-system, sans-serif;
+    }
+    .wl-empty { text-align: center; padding: 60px 24px; color: #333; font-size: 15px; }
+
+    /* ── Chart sheet ── */
+    .chart-sheet {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 200;
+      background: #0f0f0f;
+      border-top: 1px solid #222;
+      border-radius: 16px 16px 0 0;
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      height: 85vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-sheet.open { transform: translateY(0); }
+    .chart-handle {
+      width: 36px; height: 4px;
+      background: #333;
+      border-radius: 2px;
+      margin: 10px auto 0;
+      flex-shrink: 0;
+    }
+    .chart-sheet-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    .chart-sheet-ticker { font-size: 20px; font-weight: 700; color: #fff; }
+    .chart-actions { display: flex; gap: 10px; align-items: center; }
+    .chart-add-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: -apple-system, sans-serif;
+    }
+    .chart-close-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: -apple-system, sans-serif;
+    }
+    .chart-body { flex: 1; overflow: hidden; }
+    .chart-body iframe,
+    .chart-body > div { width: 100% !important; height: 100% !important; }
+
+    /* ── Overlay ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 199;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .overlay.visible { opacity: 1; pointer-events: all; }
+
+    /* ── Run scanner btn ── */
+    .run-btn {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 6px 12px;
+      color: #888;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: -apple-system, sans-serif;
+    }
+    .run-btn:disabled { opacity: 0.4; }
+  </style>
+</head>
+<body>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <span class="topbar-title">SwingTrader</span>
+    <div class="topbar-right">
+      <button class="run-btn" id="run-btn" onclick="triggerScan()">▶ Scan</button>
+      <button class="signout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Progress banner -->
+  <div class="progress-banner" id="progress-banner" style="margin-top:56px">
+    <div class="progress-banner-label" id="progress-label">Downloading market data...</div>
+    <div class="progress-track">
+      <div class="progress-dots" id="progress-dots"></div>
+      <div class="progress-fill" id="progress-fill" style="width:2%;display:none"></div>
+    </div>
+    <div class="progress-banner-sub">
+      <span id="progress-count"></span>
+      <span id="progress-updated"></span>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="content">
+
+    <!-- Scanner page -->
+    <div class="page active" id="page-scanner">
+      <div class="scan-header">
+        <span class="scan-count" id="scan-meta">Loading...</span>
+      </div>
+      <input class="filter-input" id="filter" placeholder="Filter ticker..." oninput="renderScanner()" />
+      <div class="scan-list" id="scan-list">
+        <div class="scan-empty">Loading scanner results...</div>
+      </div>
+    </div>
+
+    <!-- Watchlist page -->
+    <div class="page" id="page-watchlist">
+      <div class="wl-add-bar">
+        <input type="text" id="wl-input" placeholder="Add ticker..." maxlength="6"
+          onkeydown="if(event.key==='Enter') addTicker()" />
+        <button class="add-btn" onclick="addTicker()">Add</button>
+      </div>
+      <div id="wl-list">
+        <div class="wl-empty">No tickers yet.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabbar">
+    <button class="tab active" id="tab-scanner" onclick="switchTab('scanner')">
+      <span class="tab-icon">📊</span>
+      <span>Scanner</span>
+    </button>
+    <button class="tab" id="tab-watchlist" onclick="switchTab('watchlist')">
+      <span class="tab-icon">👁</span>
+      <span>Watchlist</span>
+    </button>
+  </div>
+
+  <!-- Overlay -->
+  <div class="overlay" id="overlay" onclick="closeChart()"></div>
+
+  <!-- Chart sheet -->
+  <div class="chart-sheet" id="chart-sheet">
+    <div class="chart-handle"></div>
+    <div class="chart-sheet-header">
+      <span class="chart-sheet-ticker" id="chart-ticker">—</span>
+      <div class="chart-actions">
+        <button class="chart-add-btn" id="chart-add-btn" onclick="addCurrentToWatchlist()">+ Watchlist</button>
+        <button class="chart-close-btn" onclick="closeChart()">Close</button>
+      </div>
+    </div>
+    <div class="chart-body" id="chart-body"></div>
+  </div>
+
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <script>
+    fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
+    async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
+
+    // ── Tabs ──
+    function switchTab(tab) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+      document.getElementById('page-' + tab).classList.add('active')
+      document.getElementById('tab-' + tab).classList.add('active')
+    }
+
+    // ── Chart sheet ──
+    let currentChartTicker = ''
+
+    function openChart(ticker) {
+      currentChartTicker = ticker
+      document.getElementById('chart-ticker').textContent = ticker
+      document.getElementById('chart-sheet').classList.add('open')
+      document.getElementById('overlay').classList.add('visible')
+
+      const body = document.getElementById('chart-body')
+      body.innerHTML = '<div id="tv_mobile" style="height:100%"></div>'
+
+      if (window.TradingView) {
+        new TradingView.widget({
+          container_id: 'tv_mobile',
+          width: '100%',
+          height: '100%',
+          symbol: ticker,
+          interval: 'D',
+          timezone: 'America/New_York',
+          theme: 'dark',
+          style: '1',
+          locale: 'en',
+          enable_publishing: false,
+          allow_symbol_change: true,
+          hide_side_toolbar: true,
+          save_image: false,
+        })
+      }
+    }
+
+    function closeChart() {
+      document.getElementById('chart-sheet').classList.remove('open')
+      document.getElementById('overlay').classList.remove('visible')
+      document.getElementById('chart-body').innerHTML = ''
+      currentChartTicker = ''
+    }
+
+    async function addCurrentToWatchlist() {
+      if (!currentChartTicker) return
+      const r = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker: currentChartTicker })
+      })
+      if (r.ok) {
+        document.getElementById('chart-add-btn').textContent = '✓ Added'
+        setTimeout(() => { document.getElementById('chart-add-btn').textContent = '+ Watchlist' }, 2000)
+        loadWatchlist()
+      }
+    }
+
+    // ── Scanner ──
+    let results = []
+
+    async function loadScanner() {
+      const r = await fetch('/api/scanner')
+      if (!r.ok) return
+      results = await r.json()
+      document.getElementById('scan-meta').textContent = results.length > 0
+        ? 'Last scan: ' + new Date(results[0].scanned_at).toLocaleString()
+        : 'No scans yet'
+      renderScanner()
+    }
+
+    function renderScanner() {
+      const filter = document.getElementById('filter').value.trim().toUpperCase()
+      const today = new Date().toISOString().slice(0, 10)
+      let rows = results
+        .filter(r => !filter || r.ticker.includes(filter))
+        .sort((a, b) => b.setup_date.localeCompare(a.setup_date))
+
+      const el = document.getElementById('scan-list')
+      if (!rows.length) {
+        el.innerHTML = '<div class="scan-empty">No results yet.<br>Scanner runs weekdays at 5 PM ET.</div>'
+        return
+      }
+      el.innerHTML = rows.map(r => {
+        const isToday = r.setup_date === today
+        return `<div class="scan-item" onclick="openChart('${r.ticker}')">
+          <div class="scan-item-left">
+            <span class="scan-ticker">${r.ticker}</span>
+            <span class="scan-date">${r.setup_date}</span>
+          </div>
+          <div class="scan-item-right">
+            ${isToday ? '<span class="new-badge">new</span>' : ''}
+            <span>›</span>
+          </div>
+        </div>`
+      }).join('')
+    }
+
+    // ── Watchlist ──
+    let watchlist = []
+
+    async function loadWatchlist() {
+      const r = await fetch('/api/watchlist')
+      if (!r.ok) return
+      watchlist = await r.json()
+      renderWatchlist()
+    }
+
+    function renderWatchlist() {
+      const el = document.getElementById('wl-list')
+      if (!watchlist.length) { el.innerHTML = '<div class="wl-empty">No tickers yet.</div>'; return }
+      const sorted = [...watchlist].sort((a, b) => a.ticker.localeCompare(b.ticker))
+      el.innerHTML = sorted.map(item => `
+        <div class="wl-item" onclick="openChart('${item.ticker}')">
+          <span class="wl-ticker-name">${item.ticker}</span>
+          <button class="wl-del" onclick="event.stopPropagation(); removeTicker('${item.id}')">×</button>
+        </div>
+      `).join('')
+    }
+
+    async function addTicker() {
+      const ticker = document.getElementById('wl-input').value.trim().toUpperCase()
+      if (!ticker) return
+      const r = await fetch('/api/watchlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker })
+      })
+      if (r.ok) { document.getElementById('wl-input').value = ''; loadWatchlist() }
+    }
+
+    async function removeTicker(id) {
+      await fetch(`/api/watchlist/${id}`, { method: 'DELETE' })
+      watchlist = watchlist.filter(w => w.id !== id)
+      renderWatchlist()
+    }
+
+    // ── Progress ──
+    let wasActive = false
+
+    async function loadProgress() {
+      const r = await fetch('/api/scanner-progress')
+      if (!r.ok) return
+      const p = await r.json()
+      const banner = document.getElementById('progress-banner')
+      const active = p.status !== 'idle'
+      banner.classList.toggle('visible', active)
+
+      if (active) {
+        wasActive = true
+        const pct = p.tickers_total > 0 ? Math.round(p.tickers_done / p.tickers_total * 100) : 0
+        const labels = { running: 'Starting scanner...', downloading: 'Downloading market data...', scanning: 'Scanning for setups...', saving: 'Saving results...' }
+        document.getElementById('progress-label').textContent = labels[p.status] || p.status
+
+        const dots = document.getElementById('progress-dots')
+        const fill = document.getElementById('progress-fill')
+        if (p.tickers_total > 0) {
+          dots.style.display = 'none'
+          fill.style.display = 'block'
+          fill.style.width = Math.max(pct, 2) + '%'
+        } else {
+          dots.style.display = 'block'
+          fill.style.display = 'none'
+        }
+
+        document.getElementById('progress-count').textContent = p.tickers_total > 0
+          ? `${p.tickers_done.toLocaleString()} / ${p.tickers_total.toLocaleString()} (${pct}%)`
+          : 'Initializing...'
+        document.getElementById('progress-updated').textContent = p.updated_at
+          ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString()
+          : ''
+      } else if (wasActive) {
+        wasActive = false
+        await loadScanner()
+      }
+    }
+
+    // ── Trigger scan ──
+    async function triggerScan() {
+      const btn = document.getElementById('run-btn')
+      btn.disabled = true; btn.textContent = '...'
+      const r = await fetch('/api/trigger-scan', { method: 'POST' })
+      const data = await r.json()
+      if (data.ok) {
+        btn.textContent = 'Running'
+        setTimeout(() => { btn.disabled = false; btn.textContent = '▶ Scan' }, 600000)
+      } else {
+        btn.disabled = false; btn.textContent = '▶ Scan'
+      }
+    }
+
+    // ── Init ──
+    async function init() {
+      await loadProgress()
+      loadScanner()
+      loadWatchlist()
+      setInterval(loadProgress, 3000)
+      setInterval(loadScanner, 300000)
+    }
+
+    init()
+  </script>
+</body>
+</html>
