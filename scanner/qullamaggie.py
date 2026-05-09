@@ -109,16 +109,16 @@ def fetch_one(t, session):
     return df
 
 def download_data(tickers):
-    print(f"\nDownloading data for {len(tickers)} tickers over ~3 hours...", flush=True)
+    print(f"\nDownloading data for {len(tickers)} tickers over ~2 hours...", flush=True)
     all_data = {}
     timed_out = 0
     rate_limited = 0
     failed = 0
 
-    # Spread evenly over 3 hours (10800 seconds) with ±30% jitter
-    base_delay = 10800 / len(tickers)
+    # Spread evenly over 2 hours (7200 seconds) with ±30% jitter
+    base_delay = 7200 / len(tickers)
     jitter = base_delay * 0.3
-    print(f"  Base delay per ticker: {base_delay:.2f}s (±{jitter:.2f}s jitter)", flush=True)
+    print(f"  Base delay per ticker: {base_delay:.2f}s (±{jitter:.2f}s jitter) — ~2hr total", flush=True)
 
     session = requests.Session()
     session.headers.update({
@@ -128,12 +128,10 @@ def download_data(tickers):
     })
 
     for i, t in enumerate(tickers):
-        # Rotate User-Agent every 50 tickers
         if i % 50 == 0 and i > 0:
             session.headers.update({'User-Agent': random.choice(AGENTS)})
 
         if i % 25 == 0:
-            elapsed_min = (i * base_delay) / 60
             remaining_min = ((len(tickers) - i) * base_delay) / 60
             print(f"  {i}/{len(tickers)} — {len(all_data)} loaded | "
                   f"timeouts={timed_out} rate_limits={rate_limited} failed={failed} | "
@@ -177,7 +175,7 @@ def download_data(tickers):
                     failed += 1
                     break
 
-        # Spread requests evenly over 3 hours with random jitter
+        # Spread requests evenly over 2 hours with random jitter
         sleep_time = base_delay + random.uniform(-jitter, jitter)
         time.sleep(max(sleep_time, 1.0))
 
