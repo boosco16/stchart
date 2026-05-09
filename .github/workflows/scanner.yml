@@ -2,7 +2,7 @@ name: Stock Scanner
 
 on:
   schedule:
-  - cron: '0 22 * * 1-5'   # 3:00 PM PDT (summer) / 2:00 PM PST (winter)
+  - cron: '0 21 * * 1-5'   # 5:00 PM ET (EDT summer, UTC-4)
   workflow_dispatch:
 
 jobs:
