@@ -113,10 +113,13 @@
           </div>
 
           <div class="panel">
-            <div class="panel-label">
-              Scanner Results &nbsp;
-              <span class="muted" id="scan-meta"></span>
-            </div>
+           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+  <div class="panel-label" style="margin:0">
+    Scanner Results &nbsp;
+    <span class="muted" id="scan-meta"></span>
+  </div>
+  <button class="win-btn" id="scan-btn" onclick="triggerScan()">▶ Run Scanner</button>
+</div>
             <div class="filter-row">
               <label style="display:inline;margin:0">Filter:</label>
               <input type="text" id="filter" placeholder="Ticker..." oninput="renderTable()" />
@@ -386,6 +389,29 @@
     }
 
     init()
+    async function triggerScan() {
+  const btn = document.getElementById('scan-btn')
+  btn.disabled = true
+  btn.textContent = 'Starting...'
+  document.getElementById('status-main').textContent = 'Triggering scanner...'
+
+  const r = await fetch('/api/trigger-scan', { method: 'POST' })
+  const data = await r.json()
+
+  if (data.ok) {
+    btn.textContent = 'Running...'
+    document.getElementById('status-main').textContent = 'Scanner started — progress will appear shortly'
+    // Re-enable after 10 minutes to prevent double triggering
+    setTimeout(() => {
+      btn.disabled = false
+      btn.textContent = '▶ Run Scanner'
+    }, 600000)
+  } else {
+    btn.disabled = false
+    btn.textContent = '▶ Run Scanner'
+    document.getElementById('status-main').textContent = 'Error: ' + (data.error || 'Could not start scanner')
+  }
+}
   </script>
 </body>
 </html>
