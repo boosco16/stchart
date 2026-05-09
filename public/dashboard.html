@@ -82,7 +82,6 @@
     .wl-del:hover { color: #cc0000; }
     .wl-empty { font-size: 12px; color: #aaa; padding: 8px; }
 
-    /* Scanner */
     .right-col {
       display: flex;
       flex-direction: column;
@@ -107,7 +106,6 @@
     .count-txt { font-size: 11px; color: #888; white-space: nowrap; }
     .scan-table-wrap { flex: 1; overflow: auto; }
 
-    /* Chart section — spans full width below both columns */
     .chart-row {
       grid-column: 2;
       grid-row: 2;
@@ -161,7 +159,6 @@
     .chart-close:hover { background: linear-gradient(to bottom, #ffe0e0, #ffc8c8); border-color: #e07070; color: #cc0000; }
     .chart-container { flex: 1; min-height: 360px; }
 
-    /* Table */
     .win7-listview { width: 100%; border-collapse: collapse; font-size: 12px; }
     .win7-listview th {
       background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
@@ -187,7 +184,6 @@
     .scan-action { background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); border: 1px solid #abadb3; border-radius: 2px; padding: 2px 8px; font-size: 11px; color: #1e1e1e; cursor: pointer; margin-right: 3px; font-family: 'Segoe UI', sans-serif; }
     .scan-action:hover { background: linear-gradient(to bottom, #e0f0ff, #c8e4ff); border-color: #7eb4ea; }
 
-    /* Status bar */
     .win7-statusbar {
       background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
       border-top: 1px solid #c0c0c0;
@@ -202,7 +198,6 @@
     .status-pane:first-child { padding-left: 0; }
     .status-pane:last-child { border-right: none; margin-left: auto; }
 
-    /* Taskbar */
     .win7-taskbar {
       background: linear-gradient(to bottom, rgba(20,40,80,0.92) 0%, rgba(15,30,65,0.96) 100%);
       border-top: 1px solid rgba(80,120,200,0.5);
@@ -248,7 +243,6 @@
 
     <div class="win7-body">
 
-      <!-- Toolbar -->
       <div class="win7-toolbar">
         <span class="toolbar-label">File</span>
         <span class="toolbar-label">View</span>
@@ -258,7 +252,6 @@
         <button class="win7-btn" onclick="logout()">Sign out</button>
       </div>
 
-      <!-- Progress bar -->
       <div class="win7-progress-wrap" id="progress-wrap" style="display:none">
         <div class="win7-progress-label" id="progress-label">Downloading market data...</div>
         <div class="win7-progress-track">
@@ -271,10 +264,8 @@
         </div>
       </div>
 
-      <!-- Main content -->
       <div class="main-layout">
 
-        <!-- Left: Calculator + Watchlist -->
         <div class="left-col">
           <div class="win7-panel">
             <div class="win7-panel-label">Position Size Calculator</div>
@@ -320,7 +311,6 @@
           </div>
         </div>
 
-        <!-- Right: Scanner table -->
         <div class="right-col">
           <div class="scanner-toolbar">
             <span class="scanner-label">Scanner Results</span>
@@ -348,7 +338,6 @@
           </div>
         </div>
 
-        <!-- Chart row — spans right column, appears below scanner -->
         <div class="chart-row" id="chart-row">
           <div class="chart-toolbar">
             <span class="chart-ticker-name" id="chart-ticker-name">—</span>
@@ -359,7 +348,6 @@
 
       </div>
 
-      <!-- Status bar -->
       <div class="win7-statusbar">
         <span class="status-pane" id="status-main">Ready</span>
         <span class="status-pane">NASDAQ + NYSE</span>
@@ -370,7 +358,6 @@
     </div>
   </div>
 
-  <!-- Windows 7 Taskbar -->
   <div style="position:fixed;bottom:0;left:0;right:0">
     <div class="win7-taskbar">
       <div class="win7-start">⊞</div>
@@ -497,8 +484,6 @@
 
       document.getElementById('chart-ticker-name').textContent = ticker
       document.getElementById('chart-row').classList.add('visible')
-      document.getElementById('btn-1d').classList.toggle('active', interval === 'D')
-      document.getElementById('btn-1h').classList.toggle('active', interval === '60')
 
       const container = document.getElementById('chart-container')
       container.innerHTML = '<div id="tv_chart_div" style="height:360px"></div>'
@@ -537,7 +522,7 @@
       const el = document.getElementById('wl-list')
       if (!watchlist.length) { el.innerHTML = '<div class="wl-empty">No tickers added yet.</div>'; return }
       const sorted = [...watchlist].sort((a, b) => a.ticker.localeCompare(b.ticker))
-      el.innerHTML = watchlist.map(item => `
+      el.innerHTML = sorted.map(item => `
         <div class="wl-item">
           <span class="wl-ticker" onclick="startCalc('${item.ticker}'); loadChart('${item.ticker}')">${item.ticker}</span>
           <button class="wl-del" onclick="removeTicker('${item.id}')">×</button>
