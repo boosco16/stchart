@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>  </title>
+  <title> </title>
   <link rel="stylesheet" href="/shared.css" />
   <style>
     html, body { height: 100%; }
@@ -11,20 +11,17 @@
     .win7-window { width: 100%; max-width: 1200px; display: flex; flex-direction: column; height: calc(100vh - 12px); }
     .win7-body { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
 
-    /* Toolbar */
-    .toolbar-label { font-size: 11px; color: #555; margin-right: 4px; }
+    .toolbar-label { font-size: 11px; color: #555; margin-right: 4px; cursor: default; }
     .toolbar-sep { width: 1px; background: #c0c0c0; height: 20px; margin: 0 4px; }
 
-    /* Main layout */
     .main-layout {
       display: grid;
       grid-template-columns: 220px 1fr;
-      gap: 0;
+      grid-template-rows: 1fr auto;
       flex: 1;
       overflow: hidden;
     }
 
-    /* Left sidebar */
     .left-col {
       background: #f8f8f8;
       border-right: 1px solid #c8c8c8;
@@ -33,9 +30,9 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
+      grid-row: 1 / 3;
     }
 
-    /* Calculator panel */
     .calc-result-num {
       font-size: 36px;
       font-weight: 300;
@@ -56,7 +53,6 @@
     .calc-result-key { color: #666; }
     .err-msg { font-size: 11px; color: #cc0000; min-height: 14px; margin-top: 4px; }
 
-    /* Refresh bar */
     .refresh-track {
       background: linear-gradient(to bottom, #d0d0d0, #e8e8e8);
       border: 1px solid #abadb3;
@@ -75,11 +71,10 @@
     }
     .refresh-txt { font-size: 10px; color: #888; text-align: right; margin-top: 2px; }
 
-    /* Watchlist */
     .wl-add { display: flex; gap: 6px; margin-bottom: 8px; }
     .wl-add input { margin: 0; text-transform: uppercase; font-weight: 600; }
     .wl-list { border: 1px solid #d0d0d0; background: #fff; }
-    .wl-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; cursor: default; }
+    .wl-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
     .wl-item:last-child { border-bottom: none; }
     .wl-item:hover { background: #cde8ff; }
     .wl-ticker { font-size: 13px; font-weight: 600; color: #1a3a6a; cursor: pointer; letter-spacing: 0.3px; }
@@ -87,12 +82,13 @@
     .wl-del:hover { color: #cc0000; }
     .wl-empty { font-size: 12px; color: #aaa; padding: 8px; }
 
-    /* Scanner/right panel */
+    /* Scanner */
     .right-col {
       display: flex;
       flex-direction: column;
       overflow: hidden;
       background: #fff;
+      grid-row: 1;
     }
     .scanner-toolbar {
       background: linear-gradient(to bottom, #f8f8f8, #ebebeb);
@@ -109,8 +105,87 @@
     .filter-wrap { display: flex; align-items: center; gap: 6px; margin-left: auto; }
     .filter-wrap input { width: 160px; margin: 0; }
     .count-txt { font-size: 11px; color: #888; white-space: nowrap; }
-
     .scan-table-wrap { flex: 1; overflow: auto; }
+
+    /* Chart section — spans full width below both columns */
+    .chart-row {
+      grid-column: 2;
+      grid-row: 2;
+      border-top: 2px solid #4a90d9;
+      background: #fff;
+      display: none;
+      flex-direction: column;
+    }
+    .chart-row.visible { display: flex; }
+    .chart-toolbar {
+      background: linear-gradient(to bottom, #f8f8f8, #ebebeb);
+      border-bottom: 1px solid #c8c8c8;
+      padding: 5px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .chart-ticker-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a3a6a;
+      letter-spacing: 0.5px;
+      margin-right: 8px;
+    }
+    .chart-interval-btn {
+      background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+      border: 1px solid #abadb3;
+      border-radius: 2px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #333;
+      cursor: pointer;
+      font-family: 'Segoe UI', sans-serif;
+      transition: all 0.1s;
+    }
+    .chart-interval-btn:hover { background: linear-gradient(to bottom, #e0f0ff, #c8e4ff); border-color: #7eb4ea; }
+    .chart-interval-btn.active { background: linear-gradient(to bottom, #aed4f8, #8ec0f0); border-color: #4a90d9; color: #1a3a6a; }
+    .chart-close {
+      margin-left: auto;
+      background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
+      border: 1px solid #abadb3;
+      border-radius: 2px;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      color: #555;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .chart-close:hover { background: linear-gradient(to bottom, #ffe0e0, #ffc8c8); border-color: #e07070; color: #cc0000; }
+    .chart-container { flex: 1; min-height: 360px; }
+
+    /* Table */
+    .win7-listview { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .win7-listview th {
+      background: linear-gradient(to bottom, #f8f8f8, #e8e8e8);
+      border-right: 1px solid #d0d0d0;
+      border-bottom: 2px solid #c0c0c0;
+      padding: 5px 10px;
+      text-align: left;
+      font-weight: 600;
+      color: #1e1e1e;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .win7-listview th:hover { background: linear-gradient(to bottom, #e8f0ff, #d8e8ff); }
+    .win7-listview td { padding: 4px 10px; border-bottom: 1px solid #ececec; color: #1e1e1e; vertical-align: middle; }
+    .win7-listview tr:hover td { background: #cde8ff; }
+    .win7-listview tr:nth-child(even) td { background: #f7f7f7; }
+    .win7-listview tr:nth-child(even):hover td { background: #cde8ff; }
+    .ticker-link { color: #1a3a6a; font-weight: 700; cursor: pointer; text-decoration: none; }
+    .ticker-link:hover { text-decoration: underline; color: #0050a0; }
+    .today-badge { background: #0060c0; color: #fff; font-size: 9px; padding: 1px 5px; margin-left: 5px; border-radius: 2px; font-weight: 600; text-transform: uppercase; }
+    .scan-empty { color: #888; text-align: center; padding: 40px; font-size: 12px; }
+    .scan-action { background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); border: 1px solid #abadb3; border-radius: 2px; padding: 2px 8px; font-size: 11px; color: #1e1e1e; cursor: pointer; margin-right: 3px; font-family: 'Segoe UI', sans-serif; }
+    .scan-action:hover { background: linear-gradient(to bottom, #e0f0ff, #c8e4ff); border-color: #7eb4ea; }
 
     /* Status bar */
     .win7-statusbar {
@@ -119,42 +194,51 @@
       padding: 3px 10px;
       display: flex;
       align-items: center;
-      gap: 0;
-      flex-shrink: 0;
       font-size: 11px;
       color: #444;
+      flex-shrink: 0;
     }
-    .status-pane {
-      padding: 0 10px;
-      border-right: 1px solid #c0c0c0;
-      white-space: nowrap;
-    }
+    .status-pane { padding: 0 10px; border-right: 1px solid #c0c0c0; white-space: nowrap; }
     .status-pane:first-child { padding-left: 0; }
     .status-pane:last-child { border-right: none; margin-left: auto; }
 
-    .scan-action {
-      background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
-      border: 1px solid #abadb3;
-      border-radius: 2px;
-      padding: 2px 8px;
-      font-size: 11px;
-      color: #1e1e1e;
-      cursor: pointer;
-      margin-right: 3px;
-      font-family: 'Segoe UI', sans-serif;
+    /* Taskbar */
+    .win7-taskbar {
+      background: linear-gradient(to bottom, rgba(20,40,80,0.92) 0%, rgba(15,30,65,0.96) 100%);
+      border-top: 1px solid rgba(80,120,200,0.5);
+      padding: 4px 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      box-shadow: 0 -1px 0 rgba(255,255,255,0.1);
     }
-    .scan-action:hover { background: linear-gradient(to bottom, #e0f0ff, #c8e4ff); border-color: #7eb4ea; }
+    .win7-start {
+      background: radial-gradient(ellipse at center, #3a8fd8 0%, #1a5fae 50%, #0e3d8a 100%);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      width: 36px; height: 36px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px;
+      box-shadow: 0 0 8px rgba(80,150,255,0.6);
+      flex-shrink: 0;
+    }
+    .win7-taskbar-app { background: linear-gradient(to bottom, rgba(80,120,200,0.3), rgba(40,80,160,0.2)); border: 1px solid rgba(100,150,220,0.4); border-radius: 2px; padding: 4px 10px; font-size: 11px; color: rgba(255,255,255,0.9); cursor: pointer; font-family: 'Segoe UI', sans-serif; white-space: nowrap; }
+    .win7-clock { margin-left: auto; text-align: center; font-size: 11px; color: rgba(255,255,255,0.9); padding: 2px 8px; font-family: 'Segoe UI', sans-serif; line-height: 1.4; }
+    .win7-next-scan { font-size: 10px; color: rgba(255,255,255,0.55); padding: 0 10px; white-space: nowrap; }
+    .win7-status { font-size: 11px; color: rgba(255,255,255,0.65); padding: 0 10px; border-left: 1px solid rgba(255,255,255,0.15); white-space: nowrap; }
 
     @media (max-width: 800px) {
-      .main-layout { grid-template-columns: 1fr; }
-      .right-col { min-height: 300px; }
+      .main-layout { grid-template-columns: 1fr; grid-template-rows: auto; }
+      .left-col { grid-row: auto; border-right: none; border-bottom: 1px solid #c8c8c8; }
+      .chart-row { grid-column: 1; }
     }
   </style>
 </head>
 <body>
   <div class="win7-window">
     <div class="win7-titlebar">
-      <span class="win7-title">  </span>
+      <span class="win7-title"> </span>
       <div class="win7-controls">
         <div class="win7-ctrl win7-ctrl-min">&#x2212;</div>
         <div class="win7-ctrl win7-ctrl-max">&#x25A1;</div>
@@ -174,7 +258,7 @@
         <button class="win7-btn" onclick="logout()">Sign out</button>
       </div>
 
-      <!-- Progress bar (hidden when idle) -->
+      <!-- Progress bar -->
       <div class="win7-progress-wrap" id="progress-wrap" style="display:none">
         <div class="win7-progress-label" id="progress-label">Downloading market data...</div>
         <div class="win7-progress-track">
@@ -192,7 +276,6 @@
 
         <!-- Left: Calculator + Watchlist -->
         <div class="left-col">
-
           <div class="win7-panel">
             <div class="win7-panel-label">Position Size Calculator</div>
             <label>Account Value ($)</label>
@@ -235,10 +318,9 @@
               <div class="wl-empty">Loading...</div>
             </div>
           </div>
-
         </div>
 
-        <!-- Right: Scanner -->
+        <!-- Right: Scanner table -->
         <div class="right-col">
           <div class="scanner-toolbar">
             <span class="scanner-label">Scanner Results</span>
@@ -266,6 +348,17 @@
           </div>
         </div>
 
+        <!-- Chart row — spans right column, appears below scanner -->
+        <div class="chart-row" id="chart-row">
+          <div class="chart-toolbar">
+            <span class="chart-ticker-name" id="chart-ticker-name">—</span>
+            <button class="chart-interval-btn active" id="btn-1d" onclick="setChartInterval('D')">1D</button>
+            <button class="chart-interval-btn" id="btn-1h" onclick="setChartInterval('60')">1H</button>
+            <button class="chart-close" onclick="closeChart()">✕ Close chart</button>
+          </div>
+          <div class="chart-container" id="chart-container"></div>
+        </div>
+
       </div>
 
       <!-- Status bar -->
@@ -290,6 +383,7 @@
     </div>
   </div>
 
+  <script src="https://s3.tradingview.com/tv.js"></script>
   <script>
     fetch('/api/me').then(r => { if (!r.ok) window.location.href = '/' })
     async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/' }
@@ -393,6 +487,56 @@
       }, 1000)
     }
 
+    // ── Chart ──
+    let currentChartTicker = ''
+    let currentInterval = 'D'
+    let tvWidget = null
+
+    function loadChart(ticker, interval) {
+      interval = interval || currentInterval
+      currentChartTicker = ticker
+      currentInterval = interval
+
+      document.getElementById('chart-ticker-name').textContent = ticker
+      document.getElementById('chart-row').classList.add('visible')
+      document.getElementById('btn-1d').classList.toggle('active', interval === 'D')
+      document.getElementById('btn-1h').classList.toggle('active', interval === '60')
+
+      const container = document.getElementById('chart-container')
+      container.innerHTML = '<div id="tv_chart_div" style="height:360px"></div>'
+
+      if (window.TradingView) {
+        tvWidget = new TradingView.widget({
+          container_id: 'tv_chart_div',
+          width: '100%',
+          height: 360,
+          symbol: ticker,
+          interval: interval,
+          timezone: 'America/New_York',
+          theme: 'light',
+          style: '1',
+          locale: 'en',
+          toolbar_bg: '#f8f8f8',
+          enable_publishing: false,
+          allow_symbol_change: true,
+          hide_side_toolbar: false,
+          save_image: false,
+        })
+      }
+    }
+
+    function setChartInterval(interval) {
+      if (currentChartTicker) loadChart(currentChartTicker, interval)
+    }
+
+    function closeChart() {
+      document.getElementById('chart-row').classList.remove('visible')
+      document.getElementById('chart-container').innerHTML = ''
+      tvWidget = null
+      currentChartTicker = ''
+    }
+
+    // ── Watchlist ──
     let watchlist = []
 
     function renderList() {
@@ -400,7 +544,7 @@
       if (!watchlist.length) { el.innerHTML = '<div class="wl-empty">No tickers added yet.</div>'; return }
       el.innerHTML = watchlist.map(item => `
         <div class="wl-item">
-          <span class="wl-ticker" onclick="startCalc('${item.ticker}')">${item.ticker}</span>
+          <span class="wl-ticker" onclick="startCalc('${item.ticker}'); loadChart('${item.ticker}')">${item.ticker}</span>
           <button class="wl-del" onclick="removeTicker('${item.id}')">×</button>
         </div>
       `).join('')
@@ -429,6 +573,7 @@
       renderList()
     }
 
+    // ── Scanner ──
     let results = [], sortCol = 'setup_date', sortDir = -1
 
     function sortBy(col) {
@@ -449,12 +594,16 @@
       document.getElementById('scan-body').innerHTML = rows.map(r => {
         const isToday = r.setup_date === today
         return `<tr>
-          <td style="font-weight:600;color:#1a3a6a">${r.ticker}${isToday ? '<span class="today-badge">new</span>' : ''}</td>
+          <td>
+            <span class="ticker-link" onclick="loadChart('${r.ticker}'); startCalc('${r.ticker}')">${r.ticker}</span>
+            ${isToday ? '<span class="today-badge">new</span>' : ''}
+          </td>
           <td>${r.setup_date}</td>
           <td style="color:#666;font-size:11px">${new Date(r.scanned_at).toLocaleString()}</td>
           <td>
             <button class="scan-action" onclick="addToWatchlist('${r.ticker}')">+ Watchlist</button>
             <button class="scan-action" onclick="startCalc('${r.ticker}')">Calculate</button>
+            <button class="scan-action" onclick="loadChart('${r.ticker}')">📈 Chart</button>
           </td>
         </tr>`
       }).join('')
@@ -495,17 +644,11 @@
       if (active) {
         wasActive = true
         const pct = p.tickers_total > 0 ? Math.round(p.tickers_done / p.tickers_total * 100) : 0
-        const labels = {
-          running: 'Starting scanner...',
-          downloading: 'Downloading market data...',
-          scanning: 'Scanning for setups...',
-          saving: 'Saving results to database...'
-        }
+        const labels = { running: 'Starting scanner...', downloading: 'Downloading market data...', scanning: 'Scanning for setups...', saving: 'Saving results to database...' }
         document.getElementById('progress-label').textContent = labels[p.status] || p.status
 
         const dots = document.getElementById('progress-dots')
         const fill = document.getElementById('progress-fill')
-
         if (p.tickers_total > 0) {
           dots.style.display = 'none'
           fill.style.display = 'block'
@@ -521,7 +664,6 @@
         document.getElementById('progress-updated').textContent = p.updated_at
           ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString()
           : ''
-
         document.getElementById('status-main').textContent = labels[p.status] || p.status
         document.getElementById('taskbar-status').textContent = p.tickers_total > 0 ? `${pct}% complete` : 'Starting...'
       } else if (wasActive) {
