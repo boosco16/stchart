@@ -15,6 +15,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.NotOpenSSLWarning)
 
 import shutil
+import random
 import yfinance as yf
 
 if os.path.exists("/tmp/yf_cache"):
@@ -37,6 +38,15 @@ warnings.filterwarnings("ignore")
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 db = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
+]
 
 def update_progress(status, done=0, total=0):
     for attempt in range(3):
@@ -71,7 +81,7 @@ PARAM_SET = {
 
 def get_market_tickers():
     print("Fetching NASDAQ & NYSE tickers...")
-    headers = {"User-Agent": "Mozilla/5.0"}
+    headers = {"User-Agent": random.choice(AGENTS)}
     tickers = []
     for exchange in ["NASDAQ", "NYSE"]:
         url = f"https://api.nasdaq.com/api/screener/stocks?tableonly=true&limit=5000&exchange={exchange}"
@@ -107,12 +117,16 @@ def download_data(tickers):
 
     session = requests.Session()
     session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': random.choice(AGENTS),
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'en-US,en;q=0.9',
     })
 
     for i, t in enumerate(tickers):
+        # Rotate User-Agent every 50 tickers
+        if i % 50 == 0 and i > 0:
+            session.headers.update({'User-Agent': random.choice(AGENTS)})
+
         if i % 25 == 0:
             print(f"  {i}/{len(tickers)} — {len(all_data)} loaded | timeouts={timed_out} rate_limits={rate_limited} failed={failed}", flush=True)
             update_progress('downloading', i, len(tickers))
@@ -154,7 +168,7 @@ def download_data(tickers):
                     failed += 1
                     break
 
-        time.sleep(0.8)
+        time.sleep(2)
 
     print(f"\n  Done. Loaded={len(all_data)} | Timeouts={timed_out} | RateLimited={rate_limited} | Failed={failed}", flush=True)
     return all_data
