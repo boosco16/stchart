@@ -6,8 +6,10 @@ on:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 240
-    
+    timeout-minutes: 360
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4.2.2
