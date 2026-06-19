@@ -67,7 +67,7 @@ PARAM_SET = {
     'DOLLAR_VOLUME_MIN': 25_000_000,
     'ADR_MIN': 0.05,
     'PRICE_MIN': 5.0,
-    'VOL_CONTRACTION': 1.30,
+    'VOL_CONTRACTION': 1.40,
     'VCP_MAX_RATIO': 0.80,
     'SURGE_MIN': 0.40,
     'SURGE_MAX_DURATION': 30,
@@ -235,9 +235,16 @@ def scan_stock_history(args):
         pullup_from_peak = (current_close - peak) / peak if peak > 0 else 0
         if pullup_from_peak > p['FLAG_MAX_PULLUP']: continue
 
-        recent_range = np.mean(high_arr[i - 2: i + 1] - low_arr[i - 2: i + 1])
-        surge_range = np.mean(high_arr[i - lookback: i + 1] - low_arr[i - lookback: i + 1])
-        if surge_range > 0 and (recent_range / surge_range) > p['VCP_MAX_RATIO']: continue
+        # VCP ratio measured as % daily range relative to closing price, not raw
+        # dollar range — keeps the comparison valid across the price change that
+        # happens between the start of the surge window and the flag.
+        recent_pct_range = np.mean(
+            (high_arr[i - 2: i + 1] - low_arr[i - 2: i + 1]) / close_arr[i - 2: i + 1]
+        )
+        surge_pct_range = np.mean(
+            (high_arr[i - lookback: i + 1] - low_arr[i - lookback: i + 1]) / close_arr[i - lookback: i + 1]
+        )
+        if surge_pct_range > 0 and (recent_pct_range / surge_pct_range) > p['VCP_MAX_RATIO']: continue
 
         flag_vol = np.mean(vol_arr[i - days_since_peak + 1: i + 1])
         surge_vol = np.mean(vol_arr[i - lookback: i - days_since_peak + 1])
