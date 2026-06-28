@@ -131,20 +131,6 @@
       letter-spacing: 0.5px;
       margin-right: 8px;
     }
-    .chart-interval-btn {
-      background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
-      border: 1px solid #abadb3;
-      border-radius: 2px;
-      padding: 3px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      color: #333;
-      cursor: pointer;
-      font-family: 'Segoe UI', sans-serif;
-      transition: all 0.1s;
-    }
-    .chart-interval-btn:hover { background: linear-gradient(to bottom, #e0f0ff, #c8e4ff); border-color: #7eb4ea; }
-    .chart-interval-btn.active { background: linear-gradient(to bottom, #aed4f8, #8ec0f0); border-color: #4a90d9; color: #1a3a6a; }
     .chart-close {
       margin-left: auto;
       background: linear-gradient(to bottom, #f0f0f0, #e0e0e0);
@@ -184,6 +170,27 @@
     .scan-action { background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); border: 1px solid #abadb3; border-radius: 2px; padding: 2px 8px; font-size: 11px; color: #1e1e1e; cursor: pointer; margin-right: 3px; font-family: 'Segoe UI', sans-serif; }
     .scan-action:hover { background: linear-gradient(to bottom, #e0f0ff, #c8e4ff); border-color: #7eb4ea; }
 
+    /* Sector grouping */
+    .sector-header-row td {
+      background: linear-gradient(to bottom, #ddeaff, #ccddf5) !important;
+      border-top: 2px solid #7eb4ea;
+      border-bottom: 1px solid #aacaee;
+      padding: 5px 10px;
+    }
+    .sector-header-row:hover td { background: linear-gradient(to bottom, #ddeaff, #ccddf5) !important; }
+    .sector-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1a3a6a;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .sector-count {
+      font-size: 10px;
+      color: #6688aa;
+      margin-left: 8px;
+    }
+
     .win7-statusbar {
       background: linear-gradient(to bottom, #e8e8e8, #d8d8d8);
       border-top: 1px solid #c0c0c0;
@@ -220,7 +227,6 @@
     }
     .win7-taskbar-app { background: linear-gradient(to bottom, rgba(80,120,200,0.3), rgba(40,80,160,0.2)); border: 1px solid rgba(100,150,220,0.4); border-radius: 2px; padding: 4px 10px; font-size: 11px; color: rgba(255,255,255,0.9); cursor: pointer; font-family: 'Segoe UI', sans-serif; white-space: nowrap; }
     .win7-clock { margin-left: auto; text-align: center; font-size: 11px; color: rgba(255,255,255,0.9); padding: 2px 8px; font-family: 'Segoe UI', sans-serif; line-height: 1.4; }
-    .win7-next-scan { font-size: 10px; color: rgba(255,255,255,0.55); padding: 0 10px; white-space: nowrap; }
     .win7-status { font-size: 11px; color: rgba(255,255,255,0.65); padding: 0 10px; border-left: 1px solid rgba(255,255,255,0.15); white-space: nowrap; }
 
     @media (max-width: 800px) {
@@ -248,20 +254,7 @@
         <span class="toolbar-label">View</span>
         <span class="toolbar-label">Tools</span>
         <div class="toolbar-sep"></div>
-        <button class="win7-btn" id="scan-btn" onclick="triggerScan()">▶ Run Scanner</button>
         <button class="win7-btn" onclick="logout()">Sign out</button>
-      </div>
-
-      <div class="win7-progress-wrap" id="progress-wrap" style="display:none">
-        <div class="win7-progress-label" id="progress-label">Downloading market data...</div>
-        <div class="win7-progress-track">
-          <div class="win7-progress-dots" id="progress-dots"></div>
-          <div class="win7-progress-fill" id="progress-fill" style="width:2%"></div>
-        </div>
-        <div class="win7-progress-sub">
-          <span id="progress-count"></span>
-          <span id="progress-updated"></span>
-        </div>
       </div>
 
       <div class="main-layout">
@@ -351,7 +344,6 @@
       <div class="win7-statusbar">
         <span class="status-pane" id="status-main">Ready</span>
         <span class="status-pane">NASDAQ + NYSE</span>
-        <span class="status-pane" id="next-scan">Next scan: calculating...</span>
         <span class="status-pane" id="status-time"></span>
       </div>
 
@@ -361,7 +353,6 @@
   <div style="position:fixed;bottom:0;left:0;right:0">
     <div class="win7-taskbar">
       <div class="win7-taskbar-app"> </div>
-      <span class="win7-next-scan" id="taskbar-next"></span>
       <span class="win7-status" id="taskbar-status">Ready</span>
       <div class="win7-clock" id="clock"></div>
     </div>
@@ -380,26 +371,6 @@
       document.getElementById('status-time').textContent = time + ' · ' + date
     }
     tick(); setInterval(tick, 1000)
-
-    function updateNextScan() {
-      const now = new Date()
-      const utc = now.getTime() + now.getTimezoneOffset() * 60000
-      const nowPT = new Date(utc + (-4 * 60 * 60000))
-      let next = new Date(nowPT)
-      next.setHours(17, 0, 0, 0)
-      if (nowPT >= next) next.setDate(next.getDate() + 1)
-      while (next.getDay() === 0 || next.getDay() === 6) next.setDate(next.getDate() + 1)
-      const diffMs = next - nowPT
-      const h = Math.floor(diffMs / 3600000)
-      const m = Math.floor((diffMs % 3600000) / 60000)
-      const s = Math.floor((diffMs % 60000) / 1000)
-      const ct = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`
-      const day = next.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
-      const txt = `Next scan: ${day} 5:00 PM PDT (in ${ct})`
-      document.getElementById('next-scan').textContent = txt
-      document.getElementById('taskbar-next').textContent = txt
-    }
-    updateNextScan(); setInterval(updateNextScan, 1000)
 
     const accountInput = document.getElementById('account')
     accountInput.value = localStorage.getItem('st_account') || ''
@@ -564,28 +535,60 @@
       const filter = document.getElementById('filter').value.trim().toUpperCase()
       const today = new Date().toISOString().slice(0, 10)
       let rows = results.filter(r => !filter || r.ticker.includes(filter))
-      rows.sort((a, b) => { const av = a[sortCol]||'', bv = b[sortCol]||''; return av < bv ? -sortDir : av > bv ? sortDir : 0 })
+      rows.sort((a, b) => {
+        const av = a[sortCol] || '', bv = b[sortCol] || ''
+        return av < bv ? -sortDir : av > bv ? sortDir : 0
+      })
+
       document.getElementById('count').textContent = rows.length + ' item' + (rows.length !== 1 ? 's' : '')
+
       if (!rows.length) {
-        document.getElementById('scan-body').innerHTML = '<tr><td colspan="4" class="scan-empty">No scanner results. Scanner runs at 3:00 PM PDT on weekdays.</td></tr>'
+        document.getElementById('scan-body').innerHTML = '<tr><td colspan="4" class="scan-empty">No scanner results found.</td></tr>'
         return
       }
-      document.getElementById('scan-body').innerHTML = rows.map(r => {
-        const isToday = r.setup_date === today
-        return `<tr>
-          <td>
-            <span class="ticker-link" onclick="loadChart('${r.ticker}'); startCalc('${r.ticker}')">${r.ticker}</span>
-            ${isToday ? '<span class="today-badge">new</span>' : ''}
-          </td>
-          <td>${r.setup_date}</td>
-          <td style="color:#666;font-size:11px">${new Date(r.scanned_at).toLocaleString()}</td>
-          <td>
-            <button class="scan-action" onclick="addToWatchlist('${r.ticker}')">+ Watchlist</button>
-            <button class="scan-action" onclick="startCalc('${r.ticker}')">Calculate</button>
-            <button class="scan-action" onclick="loadChart('${r.ticker}')">📈 Chart</button>
+
+      // Group by sector
+      const grouped = {}
+      rows.forEach(r => {
+        const sector = r.sector || 'Unknown'
+        if (!grouped[sector]) grouped[sector] = []
+        grouped[sector].push(r)
+      })
+
+      const sectors = Object.keys(grouped).sort((a, b) => {
+        if (a === 'Unknown') return 1
+        if (b === 'Unknown') return -1
+        return a.localeCompare(b)
+      })
+
+      let html = ''
+      sectors.forEach(sector => {
+        const count = grouped[sector].length
+        html += `<tr class="sector-header-row">
+          <td colspan="4">
+            <span class="sector-label">${sector}</span>
+            <span class="sector-count">${count} setup${count !== 1 ? 's' : ''}</span>
           </td>
         </tr>`
-      }).join('')
+        grouped[sector].forEach(r => {
+          const isToday = r.setup_date === today
+          html += `<tr>
+            <td>
+              <span class="ticker-link" onclick="loadChart('${r.ticker}'); startCalc('${r.ticker}')">${r.ticker}</span>
+              ${isToday ? '<span class="today-badge">new</span>' : ''}
+            </td>
+            <td>${r.setup_date}</td>
+            <td style="color:#666;font-size:11px">${new Date(r.scanned_at).toLocaleString()}</td>
+            <td>
+              <button class="scan-action" onclick="addToWatchlist('${r.ticker}')">+ Watchlist</button>
+              <button class="scan-action" onclick="startCalc('${r.ticker}')">Calculate</button>
+              <button class="scan-action" onclick="loadChart('${r.ticker}')">📈 Chart</button>
+            </td>
+          </tr>`
+        })
+      })
+
+      document.getElementById('scan-body').innerHTML = html
     }
 
     async function addToWatchlist(ticker) {
@@ -610,80 +613,17 @@
       renderTable()
     }
 
-    let wasActive = false
-
-    async function loadProgress() {
-      const r = await fetch('/api/scanner-progress')
-      if (!r.ok) return
-      const p = await r.json()
-      const wrap = document.getElementById('progress-wrap')
-      const active = p.status !== 'idle'
-      wrap.style.display = active ? 'block' : 'none'
-
-      if (active) {
-        wasActive = true
-        const pct = p.tickers_total > 0 ? Math.round(p.tickers_done / p.tickers_total * 100) : 0
-        const labels = { running: 'Starting scanner...', downloading: 'Downloading market data...', scanning: 'Scanning for setups...', saving: 'Saving results to database...' }
-        document.getElementById('progress-label').textContent = labels[p.status] || p.status
-
-        const dots = document.getElementById('progress-dots')
-        const fill = document.getElementById('progress-fill')
-        if (p.tickers_total > 0) {
-          dots.style.display = 'none'
-          fill.style.display = 'block'
-          fill.style.width = Math.max(pct, 2) + '%'
-        } else {
-          dots.style.display = 'block'
-          fill.style.display = 'none'
-        }
-
-        document.getElementById('progress-count').textContent = p.tickers_total > 0
-          ? `${p.tickers_done.toLocaleString()} of ${p.tickers_total.toLocaleString()} tickers (${pct}%)`
-          : 'Initializing...'
-        document.getElementById('progress-updated').textContent = p.updated_at
-          ? 'Updated ' + new Date(p.updated_at).toLocaleTimeString()
-          : ''
-        document.getElementById('status-main').textContent = labels[p.status] || p.status
-        document.getElementById('taskbar-status').textContent = p.tickers_total > 0 ? `${pct}% complete` : 'Starting...'
-      } else if (wasActive) {
-        wasActive = false
-        document.getElementById('status-main').textContent = 'Scan complete — loading results...'
-        document.getElementById('taskbar-status').textContent = 'Scan complete'
-        await loadScanner()
-        document.getElementById('status-main').textContent = 'Ready'
-        document.getElementById('taskbar-status').textContent = 'Ready'
-      }
-    }
-
-    async function triggerScan() {
-      const btn = document.getElementById('scan-btn')
-      btn.disabled = true; btn.textContent = 'Starting...'
-      document.getElementById('status-main').textContent = 'Triggering scanner...'
-      const r = await fetch('/api/trigger-scan', { method: 'POST' })
-      const data = await r.json()
-      if (data.ok) {
-        btn.textContent = 'Running...'
-        document.getElementById('status-main').textContent = 'Scanner started'
-        setTimeout(() => { btn.disabled = false; btn.textContent = '▶ Run Scanner' }, 600000)
-      } else {
-        btn.disabled = false; btn.textContent = '▶ Run Scanner'
-        document.getElementById('status-main').textContent = 'Error: ' + (data.error || 'Could not start scanner')
-      }
-    }
-
     async function init() {
-      await loadProgress()
       loadWatchlist()
       loadScanner()
-      setInterval(loadProgress, 3000)
       setInterval(loadScanner, 300000)
     }
 
     init()
-    // Auto-redirect to mobile view on small screens
+
     if (window.innerWidth <= 768) {
       window.location.href = '/mobile'
-}
+    }
   </script>
 </body>
 </html>
